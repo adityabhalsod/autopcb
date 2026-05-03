@@ -27,7 +27,7 @@ except Exception:  # pragma: no cover
     Token = None
 
 
-# Token → color map per theme (Catppuccin Mocha for dark, GitHub Light for light)
+# Token → color map per theme (Catppuccin Mocha for dark/pcb)
 _PALETTE_DARK = {
     "Token.Keyword": "#cba6f7",
     "Token.Keyword.Type": "#89b4fa",
@@ -43,21 +43,6 @@ _PALETTE_DARK = {
     "Token.Operator": "#f38ba8",
     "Token.Punctuation": "#cdd6f4",
 }
-_PALETTE_LIGHT = {
-    "Token.Keyword": "#8250df",
-    "Token.Keyword.Type": "#0550ae",
-    "Token.Name.Builtin": "#0550ae",
-    "Token.Name.Class": "#953800",
-    "Token.Name.Function": "#8250df",
-    "Token.Name.Variable": "#24292f",
-    "Token.Name": "#24292f",
-    "Token.Literal.Number": "#0550ae",
-    "Token.Literal.String": "#0a3069",
-    "Token.Comment": "#6e7781",
-    "Token.Comment.Single": "#6e7781",
-    "Token.Operator": "#cf222e",
-    "Token.Punctuation": "#24292f",
-}
 # Active palette (mutable, updated by apply_theme)
 _PALETTE = dict(_PALETTE_DARK)
 
@@ -67,17 +52,13 @@ _THEME_EDITOR_STYLE = {
         "QPlainTextEdit { background: #11111b; color: #cdd6f4; "
         "border: 1px solid #313244; padding: 4px; }"
     ),
-    "light": (
-        "QPlainTextEdit { background: #ffffff; color: #24292f; "
-        "border: 1px solid #d0d7de; padding: 4px; }"
-    ),
     "pcb": (
         "QPlainTextEdit { background: #0a3322; color: #f0e6c8; "
         "border: 1px solid #1c7a52; padding: 4px; }"
     ),
 }
-_THEME_GUTTER_BG = {"dark": "#1a1a28", "light": "#f6f8fa", "pcb": "#0e3d2b"}
-_THEME_GUTTER_FG = {"dark": "#585b70", "light": "#8c959f", "pcb": "#8fbf9f"}
+_THEME_GUTTER_BG = {"dark": "#1a1a28", "pcb": "#0e3d2b"}
+_THEME_GUTTER_FG = {"dark": "#585b70", "pcb": "#8fbf9f"}
 _active_theme = "dark"
 
 
@@ -96,11 +77,9 @@ def _format_for(token) -> QTextCharFormat:
 def apply_theme(name: str) -> None:
     """Update module-level palette so all new highlights use the new theme."""
     global _PALETTE, _active_theme
-    _active_theme = name if name in ("dark", "light", "pcb") else "dark"
+    _active_theme = name if name in ("dark", "pcb") else "dark"
     _PALETTE.clear()
-    if _active_theme == "light":
-        _PALETTE.update(_PALETTE_LIGHT)
-    elif _active_theme == "pcb":
+    if _active_theme == "pcb":
         # Reuse dark palette for tokens — background is dark green so contrast works.
         _PALETTE.update(_PALETTE_DARK)
     else:

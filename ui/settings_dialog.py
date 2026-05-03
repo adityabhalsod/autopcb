@@ -315,25 +315,19 @@ class _AppearanceTab(QWidget):
         self._theme_manager = theme_manager
         layout = QFormLayout(self)
         self._dark = QRadioButton("Dark")
-        self._light = QRadioButton("Light")
         self._pcb = QRadioButton("PCB (real board look)")
         group = QButtonGroup(self)
         group.addButton(self._dark)
-        group.addButton(self._light)
         group.addButton(self._pcb)
         current = config.get("theme", "dark")
-        if current == "light":
-            self._light.setChecked(True)
-        elif current == "pcb":
+        if current == "pcb":
             self._pcb.setChecked(True)
         else:
             self._dark.setChecked(True)
         self._dark.toggled.connect(self._on_theme)
-        self._light.toggled.connect(self._on_theme)
         self._pcb.toggled.connect(self._on_theme)
         row = QHBoxLayout()
         row.addWidget(self._dark)
-        row.addWidget(self._light)
         row.addWidget(self._pcb)
         row.addStretch(1)
         wrap = QWidget()
@@ -349,8 +343,6 @@ class _AppearanceTab(QWidget):
         layout.addRow("Font size:", self._font_size)
 
     def _selected_theme(self) -> str:
-        if self._light.isChecked():
-            return "light"
         if self._pcb.isChecked():
             return "pcb"
         return "dark"
