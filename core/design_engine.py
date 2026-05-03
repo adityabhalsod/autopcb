@@ -137,7 +137,16 @@ class ICDesign:
 # ---------------------------------------------------------------------------
 # Auto-placer
 # ---------------------------------------------------------------------------
-GRID = 120  # px between components
+# Spacing between component slots. Increased so labels (reference, value,
+# pin names) never overlap with neighbouring symbols on dense schematics.
+GRID_X = 180   # horizontal spacing between components in a row
+GRID_Y = 160   # vertical spacing between rows
+ROW_MARGIN_X = 100
+ROW_MARGIN_Y = 100
+MAX_ROW_LEN = 10  # break long signal rows so the canvas isn't a single line
+
+# Backwards compat — older callers may still import GRID.
+GRID = GRID_X
 ROW_POWER = 0
 ROW_INPUT = 1
 ROW_SIGNAL = 2
@@ -170,17 +179,39 @@ def _row_for(comp_type: str, direction: Optional[str] = None) -> int:
 
 
 def auto_place(components: list[Component]) -> None:
-    """Assign grid positions in-place using a simple row-based layout."""
-    # Group by row.
+    """Assign grid positions in-place using a tidy row-based layout.
+
+    Components are bucketed into 5 horizontal "lanes" — power, inputs,
+    signal/active, outputs, ground. Long signal rows wrap onto a second
+    line so dense schematics don't end up as one giant horizontal strip.
+    Spacing uses :data:`GRID_X` / :data:`GRID_Y` so reference labels and
+    pin names have room to breathe.
+    """
     rows: dict[int, list[Component]] = {}
     for c in components:
         r = _row_for(c.type)
         rows.setdefault(r, []).append(c)
-    # Sort rows so layout is stable.
-    for r in rows:
-        rows[r].sort(key=lambda c: c.id)
-        for col, comp in enumerate(rows[r]):
-            comp.position = QPointF(col * GRID + 80, r * GRID + 80)
+
+    # Place each row, wrapping if it has more than MAX_ROW_LEN entries.
+    next_extra_row = max(ROW_GROUND, ROW_OUTPUT) + 1
+    for r in sorted(rows):
+        items = sorted(rows[r], key=lambda c: c.id)
+        # Split into chunks of MAX_ROW_LEN so very wide rows wrap.
+        for chunk_idx in range(0, len(items), MAX_ROW_LEN):
+            chunk = items[chunk_idx:chunk_idx + MAX_ROW_LEN]
+            # The first chunk stays on the original row; later chunks go
+            # below all standard rows so we don't collide with other lanes.
+            row_y_index = r if chunk_idx == 0 else next_extra_row
+            if chunk_idx > 0:
+                next_extra_row += 1
+            for col, comp in enumerate(chunk):
+                # Stagger every other component vertically by a half-cell so
+                # neighbouring labels don't visually merge.
+                stagger = (GRID_Y // 6) if (col % 2) else 0
+                comp.position = QPointF(
+                    ROW_MARGIN_X + col * GRID_X,
+                    ROW_MARGIN_Y + row_y_index * GRID_Y + stagger,
+                )
 
 
 # ---------------------------------------------------------------------------

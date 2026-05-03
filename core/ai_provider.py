@@ -286,6 +286,11 @@ class AnthropicProvider(AIProvider):
         bus.info("request",
                  f"→ Anthropic {model}  user={len(user)}B  system={len(system)}B  "
                  f"max_tokens={max_tokens}  temp={temperature:.2f}")
+        bus.write_transcript("request", {
+            "provider": "anthropic", "model": model,
+            "max_tokens": max_tokens, "temperature": temperature,
+            "system": system, "user": user,
+        })
         t0 = time.monotonic()
         try:
             resp = client.messages.create(
@@ -315,9 +320,15 @@ class AnthropicProvider(AIProvider):
         if not text:
             bus.error("response", "✕ Anthropic returned empty response")
             raise AIProviderError("Empty response from Anthropic")
+        elapsed = time.monotonic() - t0
         bus.info("response",
                  f"← Anthropic {model}  bytes={len(text)}  "
-                 f"elapsed={time.monotonic() - t0:.2f}s")
+                 f"elapsed={elapsed:.2f}s")
+        bus.write_transcript("response", {
+            "provider": "anthropic", "model": model,
+            "elapsed_seconds": round(elapsed, 3),
+            "response": text,
+        })
         return text
 
     def cancel(self) -> None:
@@ -396,6 +407,11 @@ class _OpenAICompatibleProvider(AIProvider):
                  f"→ {self.name} POST {url}  model={model}  "
                  f"user={len(user)}B  system={len(system)}B  "
                  f"max_tokens={max_tokens}  temp={temperature:.2f}")
+        bus.write_transcript("request", {
+            "provider": self.config.provider, "model": model, "url": url,
+            "max_tokens": max_tokens, "temperature": temperature,
+            "system": system, "user": user,
+        })
         t0 = time.monotonic()
         try:
             with h.Client(timeout=self.config.timeout_seconds) as client:
@@ -431,9 +447,15 @@ class _OpenAICompatibleProvider(AIProvider):
             text = (msg.get("content") or "").strip()
             if not text:
                 raise KeyError("empty content")
+            elapsed = time.monotonic() - t0
             bus.info("response",
                      f"← {self.name} {model}  bytes={len(text)}  "
-                     f"elapsed={time.monotonic() - t0:.2f}s")
+                     f"elapsed={elapsed:.2f}s")
+            bus.write_transcript("response", {
+                "provider": self.config.provider, "model": model,
+                "url": url, "elapsed_seconds": round(elapsed, 3),
+                "response": text,
+            })
             return text
         except (KeyError, TypeError) as e:
             bus.error("response",

@@ -39,6 +39,7 @@ USER_DIR = Path.home() / ".autoic"
 USER_PLUGINS_DIR = USER_DIR / "plugins"
 CONFIG_PATH = USER_DIR / "config.json"
 LOG_PATH = USER_DIR / "autoic.log"
+AI_LOG_DIR = USER_DIR / "ai_logs"
 DB_PATH = USER_DIR / "autoic.db"
 DEFAULT_OUTPUT_DIR = ROOT / "output"
 
@@ -47,6 +48,8 @@ def ensure_user_dir() -> dict:
     """Create ~/.autoic and return loaded config."""
     USER_DIR.mkdir(parents=True, exist_ok=True)
     USER_PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
+    AI_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    (AI_LOG_DIR / "transcripts").mkdir(parents=True, exist_ok=True)
     DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     if not CONFIG_PATH.exists():
@@ -94,6 +97,13 @@ def main() -> int:
     setup_logging()
     log = logging.getLogger("autoic")
     log.info("Starting %s v%s", APP_NAME, APP_VERSION)
+
+    # Persist every AI request/response under ~/.autoic/ai_logs/ so users can
+    # trace and debug what the model received and returned.
+    from core.ai_log import enable_file_persistence, install_log_bridge
+    install_log_bridge()
+    enable_file_persistence(AI_LOG_DIR)
+    log.info("AI transcripts \u2192 %s", AI_LOG_DIR)
 
     # Import Qt only after env is ready so log captures any Qt issues.
     from PyQt6.QtCore import Qt

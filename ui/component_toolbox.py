@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 from core.component_library import (
     CATEGORY_COLORS, ComponentDef, ComponentLibrary,
 )
+from core.component_help import friendly_text, tooltip_for
 
 MIME_COMPONENT = "application/x-autoic-component"
 
@@ -220,7 +221,7 @@ class ComponentToolbox(QWidget):
             btn = QToolButton()
             btn.setIcon(QIcon(render_symbol_pixmap(comp, size=22)))
             btn.setIconSize(QSize(20, 20))
-            btn.setToolTip(f"{comp.name} — drag onto canvas")
+            btn.setToolTip(tooltip_for(comp))
             btn.clicked.connect(lambda _=False, c=comp: self.component_activated.emit(c.id))
             quick.addWidget(btn)
         quick.addStretch(1)
@@ -272,7 +273,7 @@ class ComponentToolbox(QWidget):
                 child = QTreeWidgetItem([f"  {comp.name}  ·  {comp.id}"])
                 child.setIcon(0, QIcon(render_symbol_pixmap(comp, size=22)))
                 child.setData(0, Qt.ItemDataRole.UserRole, comp)
-                child.setToolTip(0, comp.description or comp.name)
+                child.setToolTip(0, tooltip_for(comp))
                 cat_item.addChild(child)
             cat_item.setExpanded(True)
 
@@ -293,7 +294,7 @@ class ComponentToolbox(QWidget):
         pin_count = len(comp.pins)
         self._preview_desc.setText(
             f"{comp.category} · {pin_count} pin{'s' if pin_count != 1 else ''}\n"
-            f"{comp.description or ''}".strip()
+            f"{friendly_text(comp)}".strip()
         )
 
     def refresh(self) -> None:

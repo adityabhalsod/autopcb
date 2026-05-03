@@ -70,6 +70,21 @@ class ComponentItem(QGraphicsItem):
         self.setPos(component.position)
         self._pin_anchors: dict[str, QPointF] = {}
         self._compute_pin_anchors()
+        # Friendly tooltip for non-technical users.
+        try:
+            from core.component_help import tooltip_for
+            comp_def = ComponentLibrary.instance().by_id(component.type)
+            if comp_def is not None:
+                self.setToolTip(tooltip_for(comp_def))
+            else:
+                # Fallback: still useful info from the placed instance.
+                self.setToolTip(
+                    f"<b>{component.id}</b> &mdash; {component.type}"
+                    f"<br><i>{component.value or ''}</i>"
+                    f"<br><small>Drag to move. Drag from a pin to wire.</small>"
+                )
+        except Exception:  # noqa: BLE001
+            pass
 
     # -- public helpers --------------------------------------------------
     def pin_at(self, scene_pos: QPointF, tol: float = 8.0) -> Optional[str]:
@@ -620,9 +635,11 @@ class SchematicCanvas(QGraphicsView):
 
     def drawBackground(self, painter: QPainter, rect: QRectF) -> None:
         # Resolve colors from ThemeManager so they update on theme toggle.
+        theme_name = ""
         try:
             from .theme_manager import ThemeManager
             _tm = ThemeManager.instance()
+            theme_name = (getattr(_tm, "current", "") or "").lower()
             _bg = QColor(_tm.color("canvas_bg"))
             _grid = QColor(_tm.color("grid"))
             _grid_major = QColor(_tm.color("grid_major"))
@@ -630,6 +647,13 @@ class SchematicCanvas(QGraphicsView):
             _bg = COLOR_BG
             _grid = COLOR_GRID
             _grid_major = COLOR_GRID_MAJOR
+
+        # ---- PCB theme: render a realistic green fibreglass + copper look.
+        if theme_name == "pcb":
+            self._draw_pcb_background(painter, rect, _bg, _grid, _grid_major)
+            return
+
+        # ---- Standard schematic grid (dark / light).
         painter.fillRect(rect, _bg)
         step = 20
         left = int(rect.left()) - (int(rect.left()) % step)
@@ -659,6 +683,110 @@ class SchematicCanvas(QGraphicsView):
             if y % (step * 5) == 0:
                 painter.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
             y += step
+
+    # -- PCB renderer ---------------------------------------------------
+    def _draw_pcb_background(self, painter: QPainter, rect: QRectF,
+                             bg: QColor, grid: QColor, grid_major: QColor) -> None:
+        """Draw a printed-circuit-board look: FR-4 substrate, copper traces,
+        gold-plated through-hole pads, and silkscreen reference text.
+        Used only when the active theme is ``pcb`` so the canvas resembles a
+        real board rather than a flat schematic grid.
+        """
+        from PyQt6.QtCore import QRect
+        from PyQt6.QtGui import QRadialGradient, QFont
+
+        # 1. FR-4 substrate fill with subtle radial vignette.
+        grad = QRadialGradient(rect.center(), max(rect.width(), rect.height()) / 1.2)
+        grad.setColorAt(0.0, bg.lighter(115))
+        grad.setColorAt(1.0, bg.darker(125))
+        painter.fillRect(rect, grad)
+
+        step = 40  # pad-to-pad spacing
+        left = int(rect.left()) - (int(rect.left()) % step)
+        top = int(rect.top()) - (int(rect.top()) % step)
+
+        # 2. Copper trace lattice — translucent gold lines along the grid.
+        copper = QColor(212, 175, 55, 70)  # gold, low alpha
+        copper_pen = QPen(copper)
+        copper_pen.setWidthF(2.2)
+        copper_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(copper_pen)
+        # Vertical traces every 2 cells, horizontal traces every 2 cells (offset)
+        x = left
+        col = 0
+        while x < rect.right():
+            if col % 2 == 0:
+                painter.drawLine(QPointF(x, rect.top()), QPointF(x, rect.bottom()))
+            x += step
+            col += 1
+        y = top
+        row = 0
+        while y < rect.bottom():
+            if row % 2 == 1:
+                painter.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
+            y += step
+            row += 1
+
+        # 3. Solder mask "scratches" — faint major grid for a sense of scale.
+        major_pen = QPen(QColor(grid_major.red(), grid_major.green(),
+                                grid_major.blue(), 40))
+        major_pen.setWidthF(0.6)
+        painter.setPen(major_pen)
+        x = left
+        while x < rect.right():
+            if x % (step * 4) == 0:
+                painter.drawLine(QPointF(x, rect.top()), QPointF(x, rect.bottom()))
+            x += step
+        y = top
+        while y < rect.bottom():
+            if y % (step * 4) == 0:
+                painter.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
+            y += step
+
+        # 4. Through-hole pads at every grid intersection.
+        pad_outer = QColor(20, 70, 50)        # darker copper-on-mask ring
+        pad_gold = QColor(230, 195, 80)       # plated gold
+        pad_drill = QColor(20, 30, 25)        # drill hole
+        painter.setPen(Qt.PenStyle.NoPen)
+        x = left
+        while x < rect.right():
+            y = top
+            while y < rect.bottom():
+                # Outer copper ring
+                painter.setBrush(pad_outer)
+                painter.drawEllipse(QPointF(x, y), 5.5, 5.5)
+                # Gold plating
+                painter.setBrush(pad_gold)
+                painter.drawEllipse(QPointF(x, y), 4.0, 4.0)
+                # Drill
+                painter.setBrush(pad_drill)
+                painter.drawEllipse(QPointF(x, y), 1.4, 1.4)
+                y += step
+            x += step
+
+        # 5. Silkscreen reference marks every 8 cells (white text).
+        silk = QColor(240, 235, 215, 180)
+        painter.setPen(silk)
+        font = QFont()
+        font.setPointSizeF(7.0)
+        font.setBold(True)
+        painter.setFont(font)
+        big = step * 8
+        sx = int(rect.left()) - (int(rect.left()) % big)
+        sy = int(rect.top()) - (int(rect.top()) % big)
+        ref_idx = 0
+        x = sx
+        while x < rect.right():
+            y = sy
+            while y < rect.bottom():
+                # Tiny corner tick + label
+                painter.drawLine(QPointF(x + 8, y + 4), QPointF(x + 18, y + 4))
+                painter.drawLine(QPointF(x + 8, y + 4), QPointF(x + 8, y + 12))
+                label = f"R{(ref_idx % 99) + 1:02d}"
+                painter.drawText(QRect(int(x + 12), int(y + 8), 40, 14), 0, label)
+                ref_idx += 1
+                y += big
+            x += big
 
     # -- input ----------------------------------------------------------
     def wheelEvent(self, event) -> None:
