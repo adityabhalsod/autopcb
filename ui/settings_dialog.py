@@ -284,6 +284,12 @@ class _ProviderTab(QWidget):
         worker = _ProbeWorker(cfg)
 
         def _done(_ok: bool, msg: str, models: list) -> None:
+            try:
+                _done_inner(_ok, msg, models)
+            except RuntimeError:
+                return  # dialog was closed before worker finished
+
+        def _done_inner(_ok: bool, msg: str, models: list) -> None:
             if models and active_key in self._pages:
                 combo: QComboBox = self._pages[active_key]["model"]
                 current = combo.currentText()
