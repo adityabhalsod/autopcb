@@ -89,7 +89,7 @@ You can switch between modes freely — the AI can also modify your manual schem
 ### Step 1 — Clone and install
 
 ```bash
-git clone https://github.com/your-org/autopcb.git
+git clone https://github.com/adityabhalsod/autopcb.git
 cd autopcb
 python install.py
 ```
