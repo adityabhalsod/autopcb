@@ -180,7 +180,7 @@ class AIProviderConfig:
     base_url: str = ""
     api_key: str = ""
     model: str = ""
-    timeout_seconds: int = 90
+    timeout_seconds: int = 180
     max_retries: int = 3
     extra: dict = field(default_factory=dict)
 
@@ -195,7 +195,7 @@ class AIProviderConfig:
             base_url=str(raw.get("base_url") or DEFAULT_BASE_URLS.get(provider, "")),
             api_key=str(raw.get("api_key") or ""),
             model=str(raw.get("model") or DEFAULT_MODELS.get(provider, "")),
-            timeout_seconds=int(raw.get("timeout_seconds") or 90),
+            timeout_seconds=int(raw.get("timeout_seconds") or 180),
             max_retries=int(raw.get("max_retries") or 3),
             extra=dict(raw.get("extra") or {}),
         )
@@ -396,6 +396,11 @@ class _OpenAICompatibleProvider(AIProvider):
             raise AIProviderError(f"{self.label}: API key required")
         return h
 
+    def _request_timeout(self, max_tokens: int) -> Any:
+        h = self._require_httpx()
+        read_timeout = max(float(self.config.timeout_seconds), 240.0 if max_tokens >= 10000 else 120.0)
+        return h.Timeout(connect=10.0, read=read_timeout, write=60.0, pool=10.0)
+
     def complete(
         self, system: str, user: str, *, max_tokens: int = 8000, temperature: float = 0.2
     ) -> str:
@@ -435,7 +440,7 @@ class _OpenAICompatibleProvider(AIProvider):
         )
         t0 = time.monotonic()
         try:
-            with h.Client(timeout=self.config.timeout_seconds) as client:
+            with h.Client(timeout=self._request_timeout(max_tokens)) as client:
                 self._active_client = client
                 try:
                     resp = client.post(url, headers=self._headers(), json=payload)

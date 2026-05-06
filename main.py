@@ -81,6 +81,7 @@ def setup_logging() -> None:
     root.addHandler(handler)
     root.addHandler(stream)
     logging.getLogger("anthropic").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 def load_theme() -> str:  # legacy helper kept for compatibility

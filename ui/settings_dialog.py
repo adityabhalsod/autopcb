@@ -10,7 +10,9 @@ import json
 import logging
 from pathlib import Path
 
-from PyQt6.QtCore import QThread, QTimer, pyqtSignal
+from PyQt6 import sip
+from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QComboBox,
@@ -96,6 +98,8 @@ class _ProviderTab(QWidget):
     def __init__(self, config: dict) -> None:
         super().__init__()
         self._config = config
+        self._closing = False
+        self._probe_generation = 0
         self._workers: list[_ProbeWorker] = []
         self._build()
         self._load()
@@ -217,20 +221,26 @@ class _ProviderTab(QWidget):
                 fields["base_url"].setText(cfg.get("base_url", DEFAULT_BASE_URLS[key]))
                 fields["api_key"].setText(cfg.get("api_key", ""))
                 fields["model"].setEditText(cfg.get("model", DEFAULT_MODELS[key]))
-        # Kick off an automatic model probe for the active provider so the
-        # dropdown is populated as soon as the dialog opens.
-        QTimer.singleShot(150, self._detect_models)
+        self._status.setText("Click Detect models to refresh the live model list.")
 
     def _on_provider_changed(self, index: int) -> None:
         self._stack.setCurrentIndex(index)
-        # Auto-fetch the live model list for the newly selected provider.
-        QTimer.singleShot(50, self._detect_models)
+        if self._closing:
+            return
+        provider_key = self._provider.itemData(index)
+        provider_label = PROVIDER_LABELS.get(provider_key, provider_key)
+        self._status.setText(f"{provider_label} selected. Click Detect models to refresh.")
 
     def collect(self) -> dict:
         active = self._provider.currentData()
+        prov_cfg = self._config.get("ai_provider") if isinstance(self._config.get("ai_provider"), dict) else {}
         result = {"active": active}
         for key, fields in self._pages.items():
+            existing = prov_cfg.get(key, {}) if isinstance(prov_cfg.get(key), dict) else {}
             entry = {}
+            for preserved_key in ("timeout_seconds", "max_retries", "extra"):
+                if preserved_key in existing:
+                    entry[preserved_key] = existing[preserved_key]
             if "api_key" in fields:
                 entry["api_key"] = fields["api_key"].text().strip()
             if "model" in fields:
@@ -244,12 +254,7 @@ class _ProviderTab(QWidget):
         data = self.collect()
         active = data["active"]
         section = data.get(active, {})
-        return AIProviderConfig(
-            provider=active,
-            base_url=section.get("base_url", DEFAULT_BASE_URLS.get(active, "")),
-            api_key=section.get("api_key", ""),
-            model=section.get("model", DEFAULT_MODELS.get(active, "")),
-        )
+        return AIProviderConfig.from_dict({**section, "provider": active})
 
     def _test_current(self) -> None:
         cfg = self.active_config()
@@ -263,11 +268,17 @@ class _ProviderTab(QWidget):
         worker.start()
 
     def _on_test_done(self, ok: bool, message: str, _models: list) -> None:
+        if self._closing or sip.isdeleted(self._status):
+            return
         self._status.setText(("✅ " if ok else "❌ ") + message)
 
     def _detect_models(self) -> None:
+        if self._closing:
+            return
         cfg = self.active_config()
         active_key = cfg.provider
+        self._probe_generation += 1
+        probe_generation = self._probe_generation
         # Anthropic has no public /v1/models REST endpoint — use the
         # bundled hardcoded list to populate the dropdown.
         if active_key == PROVIDER_ANTHROPIC:
@@ -284,13 +295,17 @@ class _ProviderTab(QWidget):
         worker = _ProbeWorker(cfg)
 
         def _done(_ok: bool, msg: str, models: list) -> None:
-            try:
-                _done_inner(_ok, msg, models)
-            except RuntimeError:
-                return  # dialog was closed before worker finished
-
-        def _done_inner(_ok: bool, msg: str, models: list) -> None:
-            if models and active_key in self._pages:
+            if self._closing or probe_generation != self._probe_generation:
+                return
+            if sip.isdeleted(self) or sip.isdeleted(self._status):
+                return
+            if active_key not in self._pages:
+                return
+            page = self._pages[active_key]
+            combo = page.get("model")
+            if combo is None or sip.isdeleted(combo):
+                return
+            if models:
                 combo: QComboBox = self._pages[active_key]["model"]
                 current = combo.currentText()
                 combo.clear()
@@ -306,7 +321,9 @@ class _ProviderTab(QWidget):
                     and live_cfg.base_url
                     and live_cfg.base_url != cfg.base_url
                 ):
-                    self._pages[active_key]["base_url"].setText(live_cfg.base_url)
+                    base_url = self._pages[active_key].get("base_url")
+                    if base_url is not None and not sip.isdeleted(base_url):
+                        base_url.setText(live_cfg.base_url)
                 self._status.setText(
                     f"✅ Loaded {len(models)} models from " f"{PROVIDER_LABELS[active_key]}"
                 )
@@ -334,14 +351,18 @@ class _ProviderTab(QWidget):
                     f"⚠️ No models returned ({msg}) — type the model name " f"manually.{hint}"
                 )
 
+        def _cleanup() -> None:
+            if worker in self._workers:
+                self._workers.remove(worker)
+
         worker.finished_ok.connect(_done)
-        worker.finished.connect(
-            lambda: self._workers.remove(worker) if worker in self._workers else None
-        )
+        worker.finished.connect(_cleanup)
         self._workers.append(worker)
         worker.start()
 
     def _detect_local(self) -> None:
+        if self._closing:
+            return
         found = AIProviderFactory.detect_available(
             anthropic_key=self._pages[PROVIDER_ANTHROPIC]["api_key"].text()
         )
@@ -350,6 +371,15 @@ class _ProviderTab(QWidget):
         else:
             labels = ", ".join(PROVIDER_LABELS.get(f, f) for f in found)
             self._status.setText(f"Detected: {labels}")
+
+    def shutdown(self) -> None:
+        self._closing = True
+        self._probe_generation += 1
+        for worker in list(self._workers):
+            try:
+                worker.finished_ok.disconnect()
+            except (TypeError, RuntimeError):
+                pass
 
 
 class _AppearanceTab(QWidget):
@@ -498,6 +528,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
 
     def _cancel(self) -> None:
+        self._tab_provider.shutdown()
         if (
             self._theme_manager is not None
             and getattr(self._theme_manager, "current", None) != self._original_theme
@@ -506,6 +537,7 @@ class SettingsDialog(QDialog):
         self.reject()
 
     def _save(self) -> None:
+        self._tab_provider.shutdown()
         provider_data = self._tab_provider.collect()
         appearance = self._tab_appearance.collect()
         paths = self._tab_paths.collect()
@@ -529,3 +561,7 @@ class SettingsDialog(QDialog):
 
     def active_provider_config(self) -> AIProviderConfig:
         return self._tab_provider.active_config()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self._tab_provider.shutdown()
+        super().closeEvent(event)
