@@ -65,16 +65,15 @@ def _config_to_provider(cfg: dict) -> AIProviderConfig:
     if section and section.get("active"):
         active = section["active"]
         s = section.get(active, {}) or {}
-        return AIProviderConfig(
-            provider=active,
-            base_url=s.get("base_url", DEFAULT_BASE_URLS.get(active, "")),
-            api_key=s.get("api_key", ""),
-            model=s.get("model", DEFAULT_MODELS.get(active, "")),
-        )
-    return AIProviderConfig(
-        provider=PROVIDER_ANTHROPIC,
-        api_key=cfg.get("api_key", ""),
-        model=cfg.get("model", DEFAULT_MODELS[PROVIDER_ANTHROPIC]),
+        return AIProviderConfig.from_dict({**s, "provider": active})
+    return AIProviderConfig.from_dict(
+        {
+            "provider": PROVIDER_ANTHROPIC,
+            "api_key": cfg.get("api_key", ""),
+            "model": cfg.get("model", DEFAULT_MODELS[PROVIDER_ANTHROPIC]),
+            "timeout_seconds": cfg.get("timeout_seconds"),
+            "max_retries": cfg.get("max_retries"),
+        }
     )
 
 
