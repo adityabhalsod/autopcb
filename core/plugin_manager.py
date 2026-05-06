@@ -1,4 +1,4 @@
-"""AutoIC plugin system.
+"""AutoPCB plugin system.
 
 A plugin is any Python module that exposes a top-level :func:`register`
 function taking a :class:`PluginContext`. Plugins can:
@@ -17,7 +17,7 @@ function taking a :class:`PluginContext`. Plugins can:
 Plugins are discovered from two locations (created if missing):
 
 * ``<repo>/plugins/``           — bundled examples
-* ``~/.autoic/plugins/``        — user plugins
+* ``~/.autopcb/plugins/``        — user plugins
 
 Each ``.py`` file at the top level is loaded once at startup. Errors are
 logged but never crash the app.
@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
-log = logging.getLogger("autoic.plugins")
+log = logging.getLogger("autopcb.plugins")
 
 
 # ---------------------------------------------------------------------------
@@ -51,9 +51,10 @@ class PluginInfo:
 @dataclass
 class PluginAction:
     """A menu/toolbar action contributed by a plugin."""
+
     plugin: str
     title: str
-    callback: Callable[[Any], None]   # receives MainWindow
+    callback: Callable[[Any], None]  # receives MainWindow
     menu: str = "Plugins"
     icon: str = ""
     shortcut: str = ""
@@ -63,20 +64,22 @@ class PluginAction:
 @dataclass
 class PluginExporter:
     """A custom exporter contributed by a plugin."""
+
     plugin: str
     name: str
-    extensions: list[str]            # e.g. [".kicad_sch", ".gbr"]
+    extensions: list[str]  # e.g. [".kicad_sch", ".gbr"]
     description: str
-    callback: Callable[[Any, Path], None]   # (ICDesign, Path) -> writes file
+    callback: Callable[[Any, Path], None]  # (ICDesign, Path) -> writes file
 
 
 @dataclass
 class PluginDRCRule:
     """A custom DRC rule contributed by a plugin."""
+
     plugin: str
     rule_id: str
     description: str
-    severity: str                    # "PASS" | "WARN" | "FAIL"
+    severity: str  # "PASS" | "WARN" | "FAIL"
     callback: Callable[[Any], list]  # (ICDesign) -> list[DRCViolation]
 
 
@@ -91,12 +94,18 @@ class PluginContext:
     def __init__(self, manager: "PluginManager", info: PluginInfo) -> None:
         self._manager = manager
         self.info = info
-        self.log = logging.getLogger(f"autoic.plugin.{info.name}")
+        self.log = logging.getLogger(f"autopcb.plugin.{info.name}")
 
     # -- info -------------------------------------------------------------
-    def declare(self, *, name: str, version: str = "0.0.0",
-                author: str = "", description: str = "",
-                api_version: int = PLUGIN_API_VERSION) -> None:
+    def declare(
+        self,
+        *,
+        name: str,
+        version: str = "0.0.0",
+        author: str = "",
+        description: str = "",
+        api_version: int = PLUGIN_API_VERSION,
+    ) -> None:
         """Idempotent metadata setter; called from the plugin's register()."""
         self.info.name = name or self.info.name
         self.info.version = version
@@ -106,7 +115,8 @@ class PluginContext:
 
     # -- component library -----------------------------------------------
     def register_component(self, component: Any) -> None:
-        from core.component_library import ComponentLibrary, ComponentDef
+        from core.component_library import ComponentDef, ComponentLibrary
+
         if not isinstance(component, ComponentDef):
             raise TypeError("expected ComponentDef")
         ComponentLibrary.instance().register(component)
@@ -116,36 +126,66 @@ class PluginContext:
     # -- AI providers ----------------------------------------------------
     def register_ai_provider(self, key: str, provider_cls: type) -> None:
         from core.ai_provider import AIProviderFactory
+
         AIProviderFactory.register(key, provider_cls)
         self._manager._providers.setdefault(self.info.name, []).append(key)
         self.log.info("Registered AI provider %s", key)
 
     # -- exporters --------------------------------------------------------
-    def register_exporter(self, name: str, extensions: list[str],
-                          callback: Callable[[Any, Path], None],
-                          description: str = "") -> None:
-        exp = PluginExporter(plugin=self.info.name, name=name,
-                             extensions=list(extensions),
-                             description=description, callback=callback)
+    def register_exporter(
+        self,
+        name: str,
+        extensions: list[str],
+        callback: Callable[[Any, Path], None],
+        description: str = "",
+    ) -> None:
+        exp = PluginExporter(
+            plugin=self.info.name,
+            name=name,
+            extensions=list(extensions),
+            description=description,
+            callback=callback,
+        )
         self._manager._exporters.append(exp)
         self.log.info("Registered exporter %s", name)
 
     # -- DRC rules --------------------------------------------------------
-    def register_drc_rule(self, rule_id: str, callback: Callable[[Any], list],
-                          severity: str = "WARN", description: str = "") -> None:
-        rule = PluginDRCRule(plugin=self.info.name, rule_id=rule_id,
-                             description=description, severity=severity,
-                             callback=callback)
+    def register_drc_rule(
+        self,
+        rule_id: str,
+        callback: Callable[[Any], list],
+        severity: str = "WARN",
+        description: str = "",
+    ) -> None:
+        rule = PluginDRCRule(
+            plugin=self.info.name,
+            rule_id=rule_id,
+            description=description,
+            severity=severity,
+            callback=callback,
+        )
         self._manager._drc_rules.append(rule)
         self.log.info("Registered DRC rule %s", rule_id)
 
     # -- menu/toolbar actions --------------------------------------------
-    def register_action(self, title: str, callback: Callable[[Any], None],
-                        menu: str = "Plugins", icon: str = "",
-                        shortcut: str = "", tooltip: str = "") -> None:
-        act = PluginAction(plugin=self.info.name, title=title,
-                           callback=callback, menu=menu, icon=icon,
-                           shortcut=shortcut, tooltip=tooltip)
+    def register_action(
+        self,
+        title: str,
+        callback: Callable[[Any], None],
+        menu: str = "Plugins",
+        icon: str = "",
+        shortcut: str = "",
+        tooltip: str = "",
+    ) -> None:
+        act = PluginAction(
+            plugin=self.info.name,
+            title=title,
+            callback=callback,
+            menu=menu,
+            icon=icon,
+            shortcut=shortcut,
+            tooltip=tooltip,
+        )
         self._manager._actions.append(act)
         self.log.info("Registered action %s", title)
 
@@ -164,7 +204,7 @@ class PluginManager:
         self._drc_rules: list[PluginDRCRule] = []
         self._components: dict[str, list[str]] = {}
         self._providers: dict[str, list[str]] = {}
-        self._failed: list[tuple[str, str]] = []   # (path, error)
+        self._failed: list[tuple[str, str]] = []  # (path, error)
 
     # -- discovery --------------------------------------------------------
     def discover(self) -> None:
@@ -178,11 +218,10 @@ class PluginManager:
                 if py.name.startswith("_"):
                     continue
                 self._load_one(py)
-        log.info("Loaded %d plugin(s); %d failed", len(self.plugins),
-                 len(self._failed))
+        log.info("Loaded %d plugin(s); %d failed", len(self.plugins), len(self._failed))
 
     def _load_one(self, path: Path) -> None:
-        mod_name = f"autoic_plugin_{path.stem}"
+        mod_name = f"autopcb_plugin_{path.stem}"
         try:
             spec = importlib.util.spec_from_file_location(mod_name, path)
             if spec is None or spec.loader is None:
@@ -192,14 +231,12 @@ class PluginManager:
             spec.loader.exec_module(mod)  # type: ignore[union-attr]
             register = getattr(mod, "register", None)
             if not callable(register):
-                raise AttributeError(
-                    f"{path.name}: missing top-level register(ctx) function")
+                raise AttributeError(f"{path.name}: missing top-level register(ctx) function")
             info = PluginInfo(name=path.stem, module_path=str(path))
             ctx = PluginContext(self, info)
             register(ctx)
             self.plugins.append(info)
-            log.info("Plugin loaded: %s v%s by %s",
-                     info.name, info.version, info.author or "anon")
+            log.info("Plugin loaded: %s v%s by %s", info.name, info.version, info.author or "anon")
         except Exception as e:  # noqa: BLE001
             self._failed.append((str(path), str(e)))
             log.exception("Plugin failed to load: %s", path)
@@ -233,6 +270,10 @@ class PluginManager:
 
 
 __all__ = [
-    "PluginContext", "PluginManager", "PluginInfo",
-    "PluginAction", "PluginExporter", "PluginDRCRule",
+    "PluginContext",
+    "PluginManager",
+    "PluginInfo",
+    "PluginAction",
+    "PluginExporter",
+    "PluginDRCRule",
 ]

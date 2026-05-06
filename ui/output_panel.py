@@ -7,14 +7,26 @@ from typing import Optional
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QGuiApplication, QTextCharFormat, QTextCursor
 from PyQt6.QtWidgets import (
-    QCheckBox, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QPlainTextEdit,
-    QPushButton, QTableWidget, QTableWidgetItem, QTabWidget, QTreeWidget,
-    QTreeWidgetItem, QVBoxLayout, QWidget,
+    QCheckBox,
+    QFileDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QPlainTextEdit,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 
 from core.ai_log import AILogBus, AILogRecord
 from core.bom_generator import BOMEntry, BOMGenerator
-from core.drc_engine import DRCReport, DRCViolation, SEV_FAIL, SEV_PASS, SEV_WARN
+from core.drc_engine import SEV_FAIL, SEV_PASS, SEV_WARN, DRCReport, DRCViolation
+
 from .widgets.code_editor import CodeEditor
 
 
@@ -54,7 +66,8 @@ class _BOMTab(QWidget):
         super().__init__()
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(
-            ["Reference", "Type", "Value", "Model", "Description", "Qty"])
+            ["Reference", "Type", "Value", "Model", "Description", "Qty"]
+        )
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -77,20 +90,19 @@ class _BOMTab(QWidget):
         self._entries = entries or []
         self.table.setRowCount(len(self._entries))
         for r, e in enumerate(self._entries):
-            for c, v in enumerate([e.reference, e.component_type, e.value,
-                                   e.model, e.description, str(e.quantity)]):
+            for c, v in enumerate(
+                [e.reference, e.component_type, e.value, e.model, e.description, str(e.quantity)]
+            ):
                 self.table.setItem(r, c, QTableWidgetItem(v))
 
     def _export_csv(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Export BOM", "bom.csv",
-                                              "CSV (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(self, "Export BOM", "bom.csv", "CSV (*.csv)")
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(BOMGenerator.to_csv(self._entries))
 
     def _export_json(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Export BOM", "bom.json",
-                                              "JSON (*.json)")
+        path, _ = QFileDialog.getSaveFileName(self, "Export BOM", "bom.json", "JSON (*.json)")
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(BOMGenerator.to_json(self._entries))
@@ -132,8 +144,7 @@ class _DRCTab(QWidget):
         for bucket in sev_buckets.values():
             self.tree.addTopLevelItem(bucket)
         for v in report.violations:
-            child = QTreeWidgetItem([v.rule_id, v.component_ref, v.message,
-                                     v.suggested_fix])
+            child = QTreeWidgetItem([v.rule_id, v.component_ref, v.message, v.suggested_fix])
             color = {
                 SEV_FAIL: QColor("#f38ba8"),
                 SEV_WARN: QColor("#f9e2af"),
@@ -166,6 +177,7 @@ class _AILogTab(QWidget):
         self._view.setMaximumBlockCount(5000)
         # Monospaced for log alignment.
         from PyQt6.QtGui import QFont
+
         font = QFont("monospace")
         font.setStyleHint(QFont.StyleHint.TypeWriter)
         self._view.setFont(font)
@@ -203,12 +215,10 @@ class _AILogTab(QWidget):
         cursor = self._view.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         fmt = QTextCharFormat()
-        fmt.setForeground(QBrush(
-            self.LEVEL_COLOURS.get(record.level, QColor("#d4d4d4"))))
+        fmt.setForeground(QBrush(self.LEVEL_COLOURS.get(record.level, QColor("#d4d4d4"))))
         cursor.insertText(record.formatted() + "\n", fmt)
         if self._auto_scroll.isChecked():
-            self._view.verticalScrollBar().setValue(
-                self._view.verticalScrollBar().maximum())
+            self._view.verticalScrollBar().setValue(self._view.verticalScrollBar().maximum())
 
     def _clear(self) -> None:
         self._view.clear()
@@ -219,7 +229,8 @@ class _AILogTab(QWidget):
 
     def _save(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save AI log", "ai_log.txt", "Text (*.txt);;All files (*)")
+            self, "Save AI log", "ai_log.txt", "Text (*.txt);;All files (*)"
+        )
         if not path:
             return
         with open(path, "w", encoding="utf-8") as f:

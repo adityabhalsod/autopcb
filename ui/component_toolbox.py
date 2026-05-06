@@ -1,7 +1,7 @@
 """Left-dock component toolbox — searchable tree with drag-and-drop.
 
 Each item starts a ``QDrag`` carrying the component id under MIME type
-``application/x-autoic-component``. The schematic canvas accepts drops with
+``application/x-autopcb-component``. The schematic canvas accepts drops with
 this MIME type.
 """
 
@@ -9,27 +9,39 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QMimeData, QPoint, QSize, pyqtSignal
+from PyQt6.QtCore import QMimeData, QPoint, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QDrag, QIcon, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QStyle, QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QStyle,
+    QToolButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 
-from core.component_library import (
-    CATEGORY_COLORS, ComponentDef, ComponentLibrary,
-)
 from core.component_help import friendly_text, tooltip_for
+from core.component_library import (
+    CATEGORY_COLORS,
+    ComponentDef,
+    ComponentLibrary,
+)
 
-MIME_COMPONENT = "application/x-autoic-component"
+MIME_COMPONENT = "application/x-autopcb-component"
 
 
 # ---------------------------------------------------------------------------
 # Symbol mini-painter — renders a tiny IEEE preview into a QPixmap.
 # ---------------------------------------------------------------------------
-def render_symbol_pixmap(comp: ComponentDef, size: int = 22,
-                         color: str = "#cdd6f4",
-                         bg: str = "transparent") -> QPixmap:
+def render_symbol_pixmap(
+    comp: ComponentDef, size: int = 22, color: str = "#cdd6f4", bg: str = "transparent"
+) -> QPixmap:
     pm = QPixmap(size, size)
     pm.fill(QColor(0, 0, 0, 0) if bg == "transparent" else QColor(bg))
     p = QPainter(pm)
@@ -41,23 +53,22 @@ def render_symbol_pixmap(comp: ComponentDef, size: int = 22,
     m = 3
     if s == "RES":
         # Zigzag
-        pts = [(m, size//2)]
-        seg = (size - 2*m) / 6
+        pts = [(m, size // 2)]
+        seg = (size - 2 * m) / 6
         x = m
         for i in range(6):
             x += seg
-            y = size//2 - 4 if i % 2 == 0 else size//2 + 4
+            y = size // 2 - 4 if i % 2 == 0 else size // 2 + 4
             pts.append((x, y))
-        pts.append((size - m, size//2))
+        pts.append((size - m, size // 2))
         for i in range(len(pts) - 1):
-            p.drawLine(int(pts[i][0]), int(pts[i][1]),
-                       int(pts[i+1][0]), int(pts[i+1][1]))
+            p.drawLine(int(pts[i][0]), int(pts[i][1]), int(pts[i + 1][0]), int(pts[i + 1][1]))
     elif s == "CAP":
         cy = size // 2
-        p.drawLine(m, cy, size//2 - 2, cy)
-        p.drawLine(size//2 + 2, cy, size - m, cy)
-        p.drawLine(size//2 - 2, m + 2, size//2 - 2, size - m - 2)
-        p.drawLine(size//2 + 2, m + 2, size//2 + 2, size - m - 2)
+        p.drawLine(m, cy, size // 2 - 2, cy)
+        p.drawLine(size // 2 + 2, cy, size - m, cy)
+        p.drawLine(size // 2 - 2, m + 2, size // 2 - 2, size - m - 2)
+        p.drawLine(size // 2 + 2, m + 2, size // 2 + 2, size - m - 2)
     elif s == "IND":
         cy = size // 2
         p.drawLine(m, cy, m + 3, cy)
@@ -67,18 +78,18 @@ def render_symbol_pixmap(comp: ComponentDef, size: int = 22,
         p.drawLine(m + 14, cy, size - m, cy)
     elif s in ("DIODE", "ZENER", "LED"):
         cy = size // 2
-        p.drawLine(m, cy, size//2 - 2, cy)
-        p.drawLine(size//2 - 2, m + 2, size//2 - 2, size - m - 2)
-        p.drawLine(size//2 - 2, cy - 5, size//2 + 4, cy)
-        p.drawLine(size//2 - 2, cy + 5, size//2 + 4, cy)
-        p.drawLine(size//2 + 4, m + 2, size//2 + 4, size - m - 2)
-        p.drawLine(size//2 + 4, cy, size - m, cy)
+        p.drawLine(m, cy, size // 2 - 2, cy)
+        p.drawLine(size // 2 - 2, m + 2, size // 2 - 2, size - m - 2)
+        p.drawLine(size // 2 - 2, cy - 5, size // 2 + 4, cy)
+        p.drawLine(size // 2 - 2, cy + 5, size // 2 + 4, cy)
+        p.drawLine(size // 2 + 4, m + 2, size // 2 + 4, size - m - 2)
+        p.drawLine(size // 2 + 4, cy, size - m, cy)
     elif s in ("NMOS", "PMOS"):
         x = size // 2
         p.drawLine(m + 2, m + 2, m + 2, size - m - 2)  # gate
-        p.drawLine(x, m + 2, x, size - m - 2)          # channel
+        p.drawLine(x, m + 2, x, size - m - 2)  # channel
         p.drawLine(m + 4, x, x, x)
-        p.drawLine(x, m + 2, size - m, m + 2)          # drain
+        p.drawLine(x, m + 2, size - m, m + 2)  # drain
         p.drawLine(x, size - m - 2, size - m, size - m - 2)  # source
     elif s in ("NPN", "PNP"):
         cx, cy = size // 2, size // 2
@@ -88,48 +99,49 @@ def render_symbol_pixmap(comp: ComponentDef, size: int = 22,
         p.drawLine(cx - 3, cy + 4, cx + 4, cy + 8)
     elif s == "OPAMP":
         # Triangle
-        pts = [(m, m + 1), (m, size - m - 1), (size - m, size//2)]
+        pts = [(m, m + 1), (m, size - m - 1), (size - m, size // 2)]
         for i in range(len(pts)):
-            p.drawLine(int(pts[i][0]), int(pts[i][1]),
-                       int(pts[(i+1) % 3][0]), int(pts[(i+1) % 3][1]))
+            p.drawLine(
+                int(pts[i][0]), int(pts[i][1]), int(pts[(i + 1) % 3][0]), int(pts[(i + 1) % 3][1])
+            )
         p.drawText(m + 2, m + 6, "+")
         p.drawText(m + 2, size - m - 1, "-")
     elif s in ("AND", "NAND"):
         p.drawLine(m, m + 1, m + 6, m + 1)
         p.drawLine(m, size - m - 1, m + 6, size - m - 1)
-        p.drawArc(m + 6, m, size - 2*m - 6, size - 2*m, -90 * 16, 180 * 16)
+        p.drawArc(m + 6, m, size - 2 * m - 6, size - 2 * m, -90 * 16, 180 * 16)
         if s == "NAND":
-            p.drawEllipse(size - m - 4, size//2 - 2, 4, 4)
+            p.drawEllipse(size - m - 4, size // 2 - 2, 4, 4)
     elif s in ("OR", "NOR", "XOR", "XNOR"):
-        path = [(m, m + 1), (m + 4, size//2), (m, size - m - 1)]
+        path = [(m, m + 1), (m + 4, size // 2), (m, size - m - 1)]
         for i in range(2):
-            p.drawLine(int(path[i][0]), int(path[i][1]),
-                       int(path[i+1][0]), int(path[i+1][1]))
-        p.drawArc(m + 2, m, size - 2*m - 2, size - 2*m, -60 * 16, 120 * 16)
+            p.drawLine(int(path[i][0]), int(path[i][1]), int(path[i + 1][0]), int(path[i + 1][1]))
+        p.drawArc(m + 2, m, size - 2 * m - 2, size - 2 * m, -60 * 16, 120 * 16)
         if s in ("NOR", "XNOR"):
-            p.drawEllipse(size - m - 4, size//2 - 2, 4, 4)
+            p.drawEllipse(size - m - 4, size // 2 - 2, 4, 4)
         if s in ("XOR", "XNOR"):
-            p.drawArc(m - 2, m, size - 2*m - 4, size - 2*m, -60 * 16, 120 * 16)
+            p.drawArc(m - 2, m, size - 2 * m - 4, size - 2 * m, -60 * 16, 120 * 16)
     elif s == "NOT" or s == "BUF":
-        pts = [(m, m + 1), (m, size - m - 1), (size - m - 3, size//2)]
+        pts = [(m, m + 1), (m, size - m - 1), (size - m - 3, size // 2)]
         for i in range(3):
-            p.drawLine(int(pts[i][0]), int(pts[i][1]),
-                       int(pts[(i+1) % 3][0]), int(pts[(i+1) % 3][1]))
+            p.drawLine(
+                int(pts[i][0]), int(pts[i][1]), int(pts[(i + 1) % 3][0]), int(pts[(i + 1) % 3][1])
+            )
         if s == "NOT":
-            p.drawEllipse(size - m - 4, size//2 - 2, 4, 4)
+            p.drawEllipse(size - m - 4, size // 2 - 2, 4, 4)
     elif s == "DFF" or s == "BLOCK" or s == "MUX":
-        p.drawRect(m, m + 1, size - 2*m, size - 2*m - 2)
+        p.drawRect(m, m + 1, size - 2 * m, size - 2 * m - 2)
     elif s == "VDD":
-        p.drawLine(size//2, m, size//2, size - m - 4)
-        p.drawLine(size//2 - 5, m + 2, size//2 + 5, m + 2)
+        p.drawLine(size // 2, m, size // 2, size - m - 4)
+        p.drawLine(size // 2 - 5, m + 2, size // 2 + 5, m + 2)
     elif s == "GND":
         cx = size // 2
-        p.drawLine(cx, m, cx, size//2)
-        p.drawLine(cx - 6, size//2, cx + 6, size//2)
-        p.drawLine(cx - 4, size//2 + 2, cx + 4, size//2 + 2)
-        p.drawLine(cx - 2, size//2 + 4, cx + 2, size//2 + 4)
+        p.drawLine(cx, m, cx, size // 2)
+        p.drawLine(cx - 6, size // 2, cx + 6, size // 2)
+        p.drawLine(cx - 4, size // 2 + 2, cx + 4, size // 2 + 2)
+        p.drawLine(cx - 2, size // 2 + 4, cx + 2, size // 2 + 4)
     else:
-        p.drawRect(m, m + 1, size - 2*m, size - 2*m - 2)
+        p.drawRect(m, m + 1, size - 2 * m, size - 2 * m - 2)
         p.drawText(m + 2, size - m - 4, comp.id[:3])
     p.end()
     return pm
@@ -139,7 +151,7 @@ def render_symbol_pixmap(comp: ComponentDef, size: int = 22,
 # Drag-enabled tree
 # ---------------------------------------------------------------------------
 class _ComponentTree(QTreeWidget):
-    component_hovered = pyqtSignal(object)        # ComponentDef | None
+    component_hovered = pyqtSignal(object)  # ComponentDef | None
 
     def __init__(self) -> None:
         super().__init__()
@@ -188,10 +200,9 @@ class _ComponentTree(QTreeWidget):
 class ComponentToolbox(QWidget):
     """Left-dock palette: search + category tree + preview."""
 
-    component_activated = pyqtSignal(str)   # double-click → component id
+    component_activated = pyqtSignal(str)  # double-click → component id
 
-    QUICK_IDS = ("R", "C", "L", "NMOS", "PMOS", "NPN", "VDD", "GND",
-                 "AND2", "DFF", "OPAMP")
+    QUICK_IDS = ("R", "C", "L", "NMOS", "PMOS", "NPN", "VDD", "GND", "AND2", "DFF", "OPAMP")
 
     def __init__(self) -> None:
         super().__init__()
@@ -257,9 +268,11 @@ class ComponentToolbox(QWidget):
     def _populate(self, query: str = "") -> None:
         self._tree.clear()
         for cat in self._lib.categories():
-            comps = [c for c in self._lib.by_category(cat)
-                     if not query or query.lower() in c.name.lower()
-                     or query.lower() in c.id.lower()]
+            comps = [
+                c
+                for c in self._lib.by_category(cat)
+                if not query or query.lower() in c.name.lower() or query.lower() in c.id.lower()
+            ]
             if not comps:
                 continue
             cat_item = QTreeWidgetItem([cat])

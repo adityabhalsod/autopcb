@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QPainter, QFont, QFontMetrics, QPen, QBrush
+from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QFont, QFontMetrics, QPainter, QPen
 from PyQt6.QtWidgets import (
-    QHBoxLayout, QLineEdit, QListWidget, QListWidgetItem, QPushButton,
-    QStyledItemDelegate, QVBoxLayout, QWidget, QStyle,
+    QHBoxLayout,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QStyle,
+    QStyledItemDelegate,
+    QVBoxLayout,
+    QWidget,
 )
-
 
 ROLE_USER = "user"
 ROLE_ASSISTANT = "assistant"
@@ -36,8 +42,7 @@ class _BubbleDelegate(QStyledItemDelegate):
         font = option.font
         metrics = QFontMetrics(font)
         available = max(80, max_w - 2 * self.PADDING)
-        bounding = metrics.boundingRect(0, 0, available, 10000,
-                                        Qt.TextFlag.TextWordWrap, text)
+        bounding = metrics.boundingRect(0, 0, available, 10000, Qt.TextFlag.TextWordWrap, text)
         bubble_w = bounding.width() + 2 * self.PADDING
         bubble_h = bounding.height() + 2 * self.PADDING
 
@@ -49,13 +54,17 @@ class _BubbleDelegate(QStyledItemDelegate):
 
         painter.setBrush(QBrush(bubble_color))
         painter.setPen(QPen(bubble_color))
-        painter.drawRoundedRect(x, y, bubble_w, bubble_h,
-                                self.BUBBLE_R, self.BUBBLE_R)
+        painter.drawRoundedRect(x, y, bubble_w, bubble_h, self.BUBBLE_R, self.BUBBLE_R)
         painter.setPen(QPen(text_color))
         painter.setFont(font)
-        painter.drawText(x + self.PADDING, y + self.PADDING,
-                         bounding.width(), bounding.height(),
-                         Qt.TextFlag.TextWordWrap | Qt.AlignmentFlag.AlignTop, text)
+        painter.drawText(
+            x + self.PADDING,
+            y + self.PADDING,
+            bounding.width(),
+            bounding.height(),
+            Qt.TextFlag.TextWordWrap | Qt.AlignmentFlag.AlignTop,
+            text,
+        )
         painter.restore()
 
     def sizeHint(self, option, index) -> QSize:  # type: ignore[override]
@@ -65,8 +74,7 @@ class _BubbleDelegate(QStyledItemDelegate):
         max_w = int(option.rect.width() * self.MAX_WIDTH_RATIO) - 2 * self.PADDING
         if max_w <= 40:
             max_w = 200
-        bounding = metrics.boundingRect(0, 0, max_w, 10000,
-                                        Qt.TextFlag.TextWordWrap, text)
+        bounding = metrics.boundingRect(0, 0, max_w, 10000, Qt.TextFlag.TextWordWrap, text)
         return QSize(option.rect.width(), bounding.height() + 2 * self.PADDING + 8)
 
 
@@ -85,7 +93,7 @@ class ChatWidget(QWidget):
         self._list.setFont(f)
 
         self._input = QLineEdit()
-        self._input.setPlaceholderText("Ask AutoIC to modify or explain the design…")
+        self._input.setPlaceholderText("Ask AutoPCB to modify or explain the design…")
         self._send = QPushButton("Send")
         self._send.setProperty("primary", True)
         self._send.style().unpolish(self._send)
@@ -113,8 +121,7 @@ class ChatWidget(QWidget):
         self._list.scrollToBottom()
         return item
 
-    def stream_into(self, item: QListWidgetItem, full_text: str,
-                    interval_ms: int = 12) -> None:
+    def stream_into(self, item: QListWidgetItem, full_text: str, interval_ms: int = 12) -> None:
         """Type tokens into a bubble token-by-token using a QTimer."""
         if self._stream_timer is not None:
             self._stream_timer.stop()
@@ -127,7 +134,7 @@ class ChatWidget(QWidget):
             if idx["i"] >= len(words):
                 timer.stop()
                 return
-            idx["buf"] = (idx["buf"] + (" " if idx["buf"] else "") + words[idx["i"]])
+            idx["buf"] = idx["buf"] + (" " if idx["buf"] else "") + words[idx["i"]]
             item.setText(idx["buf"])
             idx["i"] += 1
             self._list.scrollToBottom()

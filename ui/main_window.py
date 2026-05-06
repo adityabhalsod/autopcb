@@ -1,4 +1,4 @@
-"""AutoIC main window — wires every panel and the AI pipeline."""
+"""AutoPCB main window — wires every panel and the AI pipeline."""
 
 from __future__ import annotations
 
@@ -9,23 +9,34 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtWidgets import (
-    QDockWidget, QFileDialog, QMainWindow, QMessageBox, QStatusBar, QTabWidget,
-    QToolBar, QWidget,
+    QDockWidget,
+    QFileDialog,
+    QMainWindow,
+    QMessageBox,
+    QStatusBar,
+    QTabWidget,
+    QToolBar,
+    QWidget,
 )
 
 from core.ai_engine import AIEngine
 from core.ai_log import install_log_bridge
 from core.ai_provider import (
-    AIProviderConfig, AIProviderError, AIProviderFactory, DEFAULT_BASE_URLS,
-    DEFAULT_MODELS, PROVIDER_ANTHROPIC, PROVIDER_LABELS,
+    DEFAULT_BASE_URLS,
+    DEFAULT_MODELS,
+    PROVIDER_ANTHROPIC,
+    PROVIDER_LABELS,
+    AIProviderConfig,
+    AIProviderError,
+    AIProviderFactory,
 )
 from core.bom_generator import BOMEntry, BOMGenerator
 from core.component_library import ComponentLibrary
 from core.design_engine import Component, DesignEngine, ICDesign
-from core.drc_engine import DRCEngine, DRCReport, SEV_FAIL, SEV_PASS, SEV_WARN, DRCViolation
+from core.drc_engine import SEV_FAIL, SEV_PASS, SEV_WARN, DRCEngine, DRCReport, DRCViolation
 from core.netlist_generator import NetlistGenerator
 from core.plugin_manager import PluginManager
 from core.project_store import ProjectStore
@@ -40,9 +51,9 @@ from .schematic_canvas import SchematicCanvas
 from .settings_dialog import SettingsDialog
 from .spec_panel import SpecPanel
 from .theme_manager import ThemeManager
+from .widgets.chat_widget import ROLE_ASSISTANT, ROLE_SYSTEM, ROLE_USER
 from .widgets.mode_indicator import ModeIndicator
 from .widgets.progress_widget import ProgressWidget
-from .widgets.chat_widget import ROLE_ASSISTANT, ROLE_SYSTEM, ROLE_USER
 
 
 def _config_to_provider(cfg: dict) -> AIProviderConfig:
@@ -69,7 +80,8 @@ def _config_to_provider(cfg: dict) -> AIProviderConfig:
 
 class _AIDetectWorker(QThread):
     """Background probe of provider availability for the status indicator."""
-    detected = pyqtSignal(bool)   # online?
+
+    detected = pyqtSignal(bool)  # online?
 
     def __init__(self, config: AIProviderConfig) -> None:
         super().__init__()
@@ -82,16 +94,23 @@ class _AIDetectWorker(QThread):
         except Exception:  # noqa: BLE001
             self.detected.emit(False)
 
-log = logging.getLogger("autoic.window")
+
+log = logging.getLogger("autopcb.window")
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, *, config: dict, config_path: Path, db_path: Path,
-                 icons_dir: Path,
-                 plugin_dirs: Optional[list[Path]] = None,
-                 theme_manager: Optional[ThemeManager] = None) -> None:
+    def __init__(
+        self,
+        *,
+        config: dict,
+        config_path: Path,
+        db_path: Path,
+        icons_dir: Path,
+        plugin_dirs: Optional[list[Path]] = None,
+        theme_manager: Optional[ThemeManager] = None,
+    ) -> None:
         super().__init__()
-        self.setWindowTitle("AutoIC — AI-Powered IC Design")
+        self.setWindowTitle("AutoPCB — AI-Powered IC Design")
         self.setMinimumSize(1440, 900)
 
         self._config = dict(config or {})
@@ -120,9 +139,12 @@ class MainWindow(QMainWindow):
         # Register plugin DRC rules.
         for rule in self._plugins.drc_rules:
             try:
-                self._drc_engine.register_rule(rule.rule_id, rule.callback,
-                                               severity=rule.severity,
-                                               description=rule.description)
+                self._drc_engine.register_rule(
+                    rule.rule_id,
+                    rule.callback,
+                    severity=rule.severity,
+                    description=rule.description,
+                )
             except Exception as e:  # noqa: BLE001
                 log.warning("Plugin DRC rule '%s' rejected: %s", rule.rule_id, e)
         self._store = ProjectStore(self._db_path)
@@ -147,11 +169,14 @@ class MainWindow(QMainWindow):
         plugin_msg = ""
         if self._plugins.plugins:
             plugin_msg = f"  ·  {len(self._plugins.plugins)} plugin(s) loaded"
-        if not self._provider_config.api_key and \
-                self._provider_config.provider == PROVIDER_ANTHROPIC:
+        if (
+            not self._provider_config.api_key
+            and self._provider_config.provider == PROVIDER_ANTHROPIC
+        ):
             self._status.showMessage(
                 "No AI provider configured — open Settings or work in offline drag-drop mode."
-                + plugin_msg)
+                + plugin_msg
+            )
         else:
             self._status.showMessage("Ready." + plugin_msg)
 
@@ -207,8 +232,9 @@ class MainWindow(QMainWindow):
         self._mode_indicator = ModeIndicator()
         self._mode_indicator.set_status(
             online=False,
-            provider=PROVIDER_LABELS.get(self._provider_config.provider,
-                                          self._provider_config.provider),
+            provider=PROVIDER_LABELS.get(
+                self._provider_config.provider, self._provider_config.provider
+            ),
             model=self._provider_config.model,
             state="connecting",
         )
@@ -233,11 +259,10 @@ class MainWindow(QMainWindow):
         self.act_stop_ai.setEnabled(False)
         self.act_export_svg = QAction("Export S&VG…", self)
         self.act_export_png = QAction("Export PN&G…", self)
-        self.act_toggle_theme = QAction(self._icon("palette"),
-                                        "Toggle &Theme", self)
+        self.act_toggle_theme = QAction(self._icon("palette"), "Toggle &Theme", self)
         self.act_toggle_theme.setShortcut("Ctrl+T")
         self.act_toggle_theme.triggered.connect(self._toggle_theme)
-        self.act_about = QAction("&About AutoIC", self)
+        self.act_about = QAction("&About AutoPCB", self)
         self.act_toggle_spec = self._spec_dock.toggleViewAction()
         self.act_toggle_prop = self._prop_dock.toggleViewAction()
         self.act_toggle_out = self._output_dock.toggleViewAction()
@@ -245,8 +270,13 @@ class MainWindow(QMainWindow):
         self.act_toggle_prop.setText("Show &Properties panel")
         self.act_toggle_out.setText("Show &Outputs panel")
 
-        for act in (self.act_generate, self.act_save, self.act_drc,
-                    self.act_autofix, self.act_export):
+        for act in (
+            self.act_generate,
+            self.act_save,
+            self.act_drc,
+            self.act_autofix,
+            self.act_export,
+        ):
             act.setEnabled(False)
 
         self.act_quit.triggered.connect(self.close)
@@ -302,7 +332,8 @@ class MainWindow(QMainWindow):
                 if pa.tooltip:
                     a.setToolTip(pa.tooltip)
                 a.triggered.connect(
-                    lambda _checked=False, cb=pa.callback: self._invoke_plugin_action(cb))
+                    lambda _checked=False, cb=pa.callback: self._invoke_plugin_action(cb)
+                )
                 m_plugins.addAction(a)
 
         # Plugin exporters appended under File menu.
@@ -312,7 +343,8 @@ class MainWindow(QMainWindow):
             for exporter in plugin_exporters:
                 a = QAction(f"Export — {exporter.name}…", self)
                 a.triggered.connect(
-                    lambda _checked=False, e=exporter: self._run_plugin_exporter(e))
+                    lambda _checked=False, e=exporter: self._run_plugin_exporter(e)
+                )
                 m_file.addAction(a)
 
         m_help = mb.addMenu("&Help")
@@ -353,8 +385,7 @@ class MainWindow(QMainWindow):
             return
         self._theme_manager.theme_changed.connect(self._on_theme_changed)
         # Repaint canvas so grid / background colours update immediately.
-        self._theme_manager.theme_changed.connect(
-            lambda _name: self._canvas.viewport().update())
+        self._theme_manager.theme_changed.connect(lambda _name: self._canvas.viewport().update())
 
     # -- Theme -----------------------------------------------------------
     def _toggle_theme(self) -> None:
@@ -373,14 +404,20 @@ class MainWindow(QMainWindow):
         # Propagate to code editors inside the output panel so their
         # hardcoded inline stylesheet is refreshed to the current theme.
         from .widgets.code_editor import CodeEditor
+
         for editor in self._output_panel.findChildren(CodeEditor):
             editor.apply_theme(name)
 
     # -- helpers ---------------------------------------------------------
     def _set_busy(self, busy: bool, label: str = "Working…") -> None:
         self._busy = busy
-        for act in (self.act_generate, self.act_drc, self.act_autofix,
-                    self.act_save, self.act_export):
+        for act in (
+            self.act_generate,
+            self.act_drc,
+            self.act_autofix,
+            self.act_save,
+            self.act_export,
+        ):
             if act is self.act_generate:
                 act.setEnabled(not busy and self._ai_online)
             else:
@@ -402,7 +439,8 @@ class MainWindow(QMainWindow):
         if self._ai.is_ready():
             return True
         QMessageBox.warning(
-            self, "AutoIC",
+            self,
+            "AutoPCB",
             "AI provider is not configured. Open Settings to choose a provider,"
             " or use the Components panel to build a schematic offline.",
         )
@@ -411,16 +449,21 @@ class MainWindow(QMainWindow):
     # -- AI status indicator --------------------------------------------
     def _refresh_ai_status(self) -> None:
         """Probe the configured provider in the background."""
-        provider_label = PROVIDER_LABELS.get(self._provider_config.provider,
-                                              self._provider_config.provider)
+        provider_label = PROVIDER_LABELS.get(
+            self._provider_config.provider, self._provider_config.provider
+        )
         self._mode_indicator.set_status(
-            online=False, provider=provider_label,
-            model=self._provider_config.model, state="connecting",
+            online=False,
+            provider=provider_label,
+            model=self._provider_config.model,
+            state="connecting",
         )
         if not self._ai.is_ready():
             self._mode_indicator.set_status(
-                online=False, provider=provider_label,
-                model=self._provider_config.model, state="offline",
+                online=False,
+                provider=provider_label,
+                model=self._provider_config.model,
+                state="offline",
             )
             self._ai_online = False
             return
@@ -432,10 +475,12 @@ class MainWindow(QMainWindow):
 
     def _on_ai_status(self, online: bool) -> None:
         self._ai_online = bool(online)
-        provider_label = PROVIDER_LABELS.get(self._provider_config.provider,
-                                              self._provider_config.provider)
+        provider_label = PROVIDER_LABELS.get(
+            self._provider_config.provider, self._provider_config.provider
+        )
         self._mode_indicator.set_status(
-            online=online, provider=provider_label,
+            online=online,
+            provider=provider_label,
             model=self._provider_config.model,
             state="online" if online else "offline",
         )
@@ -452,9 +497,9 @@ class MainWindow(QMainWindow):
     def _on_toolbox_activated(self, comp_id: str) -> None:
         """Drop the activated component near the centre of the visible area."""
         from PyQt6.QtCore import QPoint
+
         view_centre = self._canvas.viewport().rect().center()
-        scene_pos = self._canvas.mapToScene(QPoint(view_centre.x(),
-                                                   view_centre.y()))
+        scene_pos = self._canvas.mapToScene(QPoint(view_centre.x(), view_centre.y()))
         self._canvas.add_component_at(comp_id, scene_pos)
 
     # -- pipeline --------------------------------------------------------
@@ -463,16 +508,21 @@ class MainWindow(QMainWindow):
             return
         self._on_generate_pipeline(name=name, ic_type=ic_type, description=description)
 
-    def _on_generate_pipeline(self, *, name: str | None = None,
-                              ic_type: str | None = None,
-                              description: str | None = None) -> None:
+    def _on_generate_pipeline(
+        self,
+        *,
+        name: str | None = None,
+        ic_type: str | None = None,
+        description: str | None = None,
+    ) -> None:
         if not self._check_api_key():
             return
         if name is None:
             name, ic_type, description = self._spec_panel.current_values()
         if not name or not description:
-            QMessageBox.information(self, "AutoIC",
-                                    "Please enter an IC name and description first.")
+            QMessageBox.information(
+                self, "AutoPCB", "Please enter an IC name and description first."
+            )
             return
 
         # Ensure project exists
@@ -480,11 +530,7 @@ class MainWindow(QMainWindow):
             self._current_project_id = self._store.create_project(name, ic_type or "digital")
 
         self._set_busy(True, "Generating IC spec…")
-        nl = (
-            f"IC name: {name}\n"
-            f"IC type: {ic_type}\n"
-            f"Description: {description}\n"
-        )
+        nl = f"IC name: {name}\n" f"IC type: {ic_type}\n" f"Description: {description}\n"
         spec_worker = self._ai.generate_ic_spec(nl)
         spec_worker.progress.connect(self._progress.update_text)
         spec_worker.error.connect(self._on_pipeline_error)
@@ -574,7 +620,8 @@ class MainWindow(QMainWindow):
         self._save_current_version()
         self._set_busy(False)
         self._status.showMessage(
-            f"Generation complete — {report.summary}", 7000,
+            f"Generation complete — {report.summary}",
+            7000,
         )
         self._spec_panel.chat().add_message(
             ROLE_ASSISTANT,
@@ -624,6 +671,7 @@ class MainWindow(QMainWindow):
                 if fixed.spec is None or not fixed.spec.name:
                     fixed.spec = self._current_design.spec
                 from core.design_engine import auto_place
+
                 auto_place(fixed.components)
                 self._current_design = fixed
                 self._canvas.render_design(fixed)
@@ -655,7 +703,8 @@ class MainWindow(QMainWindow):
             self._store.append_chat(self._current_project_id, "user", text)
         bubble = self._spec_panel.chat().add_message(ROLE_ASSISTANT, "…")
         worker = self._ai.chat_modify(
-            self._current_design.to_dict() if self._current_design else None, text,
+            self._current_design.to_dict() if self._current_design else None,
+            text,
         )
         worker.progress.connect(self._progress.update_text)
 
@@ -676,6 +725,7 @@ class MainWindow(QMainWindow):
                     if not fixed.spec.name and self._current_design:
                         fixed.spec = self._current_design.spec
                     from core.design_engine import auto_place
+
                     auto_place(fixed.components)
                     self._current_design = fixed
                     self._canvas.render_design(fixed)
@@ -707,10 +757,8 @@ class MainWindow(QMainWindow):
             return
         n = self._ai.cancel_all()
         log.info("Stop AI: cancelled %d worker(s)", n)
-        self._status.showMessage(
-            f"AI request cancelled by user ({n} worker(s) stopped).", 5000)
-        self._spec_panel.chat().add_message(
-            ROLE_SYSTEM, "⏹ AI request cancelled by user.")
+        self._status.showMessage(f"AI request cancelled by user ({n} worker(s) stopped).", 5000)
+        self._spec_panel.chat().add_message(ROLE_SYSTEM, "⏹ AI request cancelled by user.")
         self._set_busy(False)
 
     # -- persistence -----------------------------------------------------
@@ -733,22 +781,22 @@ class MainWindow(QMainWindow):
 
     # -- dialogs ---------------------------------------------------------
     def _open_settings(self) -> None:
-        dlg = SettingsDialog(self._config, self._config_path,
-                             theme_manager=self._theme_manager, parent=self)
+        dlg = SettingsDialog(
+            self._config, self._config_path, theme_manager=self._theme_manager, parent=self
+        )
         if dlg.exec():
             self._config = dlg.result_config()
             self._provider_config = dlg.active_provider_config()
             try:
                 self._ai.set_provider(self._provider_config)
             except AIProviderError as e:
-                QMessageBox.warning(self, "AutoIC",
-                                    f"Provider could not be initialised: {e}")
+                QMessageBox.warning(self, "AutoPCB", f"Provider could not be initialised: {e}")
             self.act_generate.setEnabled(self._ai.is_ready())
             self._refresh_ai_status()
             if self._ai.is_ready():
                 self._status.showMessage(
-                    f"AI provider: {PROVIDER_LABELS.get(self._provider_config.provider)}.",
-                    5000)
+                    f"AI provider: {PROVIDER_LABELS.get(self._provider_config.provider)}.", 5000
+                )
 
     def _open_project_dialog(self) -> None:
         dlg = ProjectDialog(self._store, self)
@@ -768,7 +816,8 @@ class MainWindow(QMainWindow):
         if loaded:
             self._apply_loaded(loaded)
             self._status.showMessage(
-                f"Loaded latest version of project #{pid}.", 5000,
+                f"Loaded latest version of project #{pid}.",
+                5000,
             )
 
     def _on_version_load(self, version_id: int) -> None:
@@ -780,17 +829,18 @@ class MainWindow(QMainWindow):
     def _apply_loaded(self, payload: dict) -> None:
         design: ICDesign = payload["design"]
         from core.design_engine import auto_place
+
         auto_place(design.components)
         self._current_design = design
         self._current_verilog = payload.get("verilog", "") or ""
         self._current_spice = payload.get("spice", "") or ""
-        self._current_bom = [BOMEntry(**e) for e in payload.get("bom", [])
-                             if isinstance(e, dict)]
+        self._current_bom = [BOMEntry(**e) for e in payload.get("bom", []) if isinstance(e, dict)]
         drc_raw = payload.get("drc") or {}
         self._current_drc = DRCReport.from_dict(drc_raw) if drc_raw else None
 
-        self._spec_panel.set_values(design.spec.name, design.spec.ic_type,
-                                     design.spec.functional_description)
+        self._spec_panel.set_values(
+            design.spec.name, design.spec.ic_type, design.spec.functional_description
+        )
         self._canvas.render_design(design)
         self._property_panel.set_design(design)
         self._output_panel.load_verilog(self._current_verilog)
@@ -808,10 +858,10 @@ class MainWindow(QMainWindow):
     def _export_zip(self) -> None:
         if not self._current_design:
             return
-        default = str(Path(self._default_export_dir()) /
-                      f"{self._current_design.spec.name or 'design'}.zip")
-        path, _ = QFileDialog.getSaveFileName(self, "Export ZIP", default,
-                                              "ZIP archive (*.zip)")
+        default = str(
+            Path(self._default_export_dir()) / f"{self._current_design.spec.name or 'design'}.zip"
+        )
+        path, _ = QFileDialog.getSaveFileName(self, "Export ZIP", default, "ZIP archive (*.zip)")
         if not path:
             return
         # Prepare schematic SVG (in-memory: write to temp and add).
@@ -825,24 +875,25 @@ class MainWindow(QMainWindow):
                 zf.writestr("design.sp", self._current_spice or "")
                 zf.writestr("bom.csv", BOMGenerator.to_csv(self._current_bom))
                 zf.writestr("bom.json", BOMGenerator.to_json(self._current_bom))
-                zf.writestr("drc.json", json.dumps(
-                    self._current_drc.to_dict() if self._current_drc else {}, indent=2))
-                zf.writestr("spec.json", json.dumps(
-                    self._current_design.spec.to_dict(), indent=2))
-                zf.writestr("design.json", json.dumps(
-                    self._current_design.to_dict(), indent=2))
+                zf.writestr(
+                    "drc.json",
+                    json.dumps(self._current_drc.to_dict() if self._current_drc else {}, indent=2),
+                )
+                zf.writestr("spec.json", json.dumps(self._current_design.spec.to_dict(), indent=2))
+                zf.writestr("design.json", json.dumps(self._current_design.to_dict(), indent=2))
                 zf.write(svg_path, arcname="schematic.svg")
             self._status.showMessage(f"Exported to {path}", 7000)
         except Exception as e:  # noqa: BLE001
-            QMessageBox.critical(self, "AutoIC", f"Export failed: {e}")
+            QMessageBox.critical(self, "AutoPCB", f"Export failed: {e}")
 
     def _export_svg(self) -> None:
         if not self._current_design:
             return
-        default = str(Path(self._default_export_dir()) /
-                      f"{self._current_design.spec.name or 'schematic'}.svg")
-        path, _ = QFileDialog.getSaveFileName(self, "Export SVG", default,
-                                              "SVG (*.svg)")
+        default = str(
+            Path(self._default_export_dir())
+            / f"{self._current_design.spec.name or 'schematic'}.svg"
+        )
+        path, _ = QFileDialog.getSaveFileName(self, "Export SVG", default, "SVG (*.svg)")
         if path:
             self._canvas.export_svg(path)
             self._status.showMessage(f"SVG saved to {path}", 5000)
@@ -850,10 +901,11 @@ class MainWindow(QMainWindow):
     def _export_png(self) -> None:
         if not self._current_design:
             return
-        default = str(Path(self._default_export_dir()) /
-                      f"{self._current_design.spec.name or 'schematic'}.png")
-        path, _ = QFileDialog.getSaveFileName(self, "Export PNG", default,
-                                              "PNG (*.png)")
+        default = str(
+            Path(self._default_export_dir())
+            / f"{self._current_design.spec.name or 'schematic'}.png"
+        )
+        path, _ = QFileDialog.getSaveFileName(self, "Export PNG", default, "PNG (*.png)")
         if path:
             self._canvas.export_png(path)
             self._status.showMessage(f"PNG saved to {path}", 5000)
@@ -864,20 +916,21 @@ class MainWindow(QMainWindow):
             callback(self)
         except Exception as e:  # noqa: BLE001
             log.exception("Plugin action raised")
-            QMessageBox.warning(self, "AutoIC", f"Plugin action failed: {e}")
+            QMessageBox.warning(self, "AutoPCB", f"Plugin action failed: {e}")
 
     def _run_plugin_exporter(self, exporter) -> None:
         if not self._current_design:
-            QMessageBox.information(self, "AutoIC",
-                                    "No active design to export.")
+            QMessageBox.information(self, "AutoPCB", "No active design to export.")
             return
         ext_filter = " ".join(f"*.{e.lstrip('.')}" for e in exporter.extensions)
         default_ext = exporter.extensions[0].lstrip(".") if exporter.extensions else "txt"
-        default = str(Path(self._default_export_dir())
-                      / f"{self._current_design.spec.name or 'design'}.{default_ext}")
+        default = str(
+            Path(self._default_export_dir())
+            / f"{self._current_design.spec.name or 'design'}.{default_ext}"
+        )
         path, _ = QFileDialog.getSaveFileName(
-            self, f"Export — {exporter.name}", default,
-            f"{exporter.name} ({ext_filter})")
+            self, f"Export — {exporter.name}", default, f"{exporter.name} ({ext_filter})"
+        )
         if not path:
             return
         try:
@@ -885,20 +938,21 @@ class MainWindow(QMainWindow):
             self._status.showMessage(f"Exported: {path}", 6000)
         except Exception as e:  # noqa: BLE001
             log.exception("Plugin exporter raised")
-            QMessageBox.warning(self, "AutoIC", f"Export failed: {e}")
+            QMessageBox.warning(self, "AutoPCB", f"Export failed: {e}")
 
     # -- about -----------------------------------------------------------
     def _show_about(self) -> None:
-        plugins = "<br>".join(
-            f"• {p.name} v{p.version}" for p in self._plugins.plugins
-        ) or "<i>(none loaded)</i>"
+        plugins = (
+            "<br>".join(f"• {p.name} v{p.version}" for p in self._plugins.plugins)
+            or "<i>(none loaded)</i>"
+        )
         QMessageBox.about(
             self,
-            "About AutoIC",
-            "<h3>AutoIC</h3>"
+            "About AutoPCB",
+            "<h3>AutoPCB</h3>"
             "<p>AI-Powered IC Design Desktop App</p>"
             "<p>Stack: Python · PyQt6 · Multi-provider AI (Anthropic / Ollama / "
             "LM Studio / NVIDIA / OpenAI router) · SQLite · Pygments</p>"
             f"<p><b>Plugins:</b><br>{plugins}</p>"
-            "<p>© AutoIC — internal project.</p>",
+            "<p>© AutoPCB — internal project.</p>",
         )

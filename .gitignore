@@ -28,7 +28,7 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# AutoIC runtime
+# AutoPCB runtime
 output/
 *.log
 *.db

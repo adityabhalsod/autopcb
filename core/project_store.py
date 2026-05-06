@@ -13,7 +13,7 @@ from typing import Any
 from .design_engine import ICDesign
 from .spec_parser import SpecParser
 
-log = logging.getLogger("autoic.store")
+log = logging.getLogger("autopcb.store")
 
 
 SCHEMA = [
@@ -81,8 +81,7 @@ class ProjectStore:
         ts = _utc_now()
         with self._lock, self._connect() as conn:
             cur = conn.execute(
-                "INSERT INTO projects (name, ic_type, created_at, updated_at) "
-                "VALUES (?,?,?,?)",
+                "INSERT INTO projects (name, ic_type, created_at, updated_at) " "VALUES (?,?,?,?)",
                 (name, ic_type, ts, ts),
             )
             conn.commit()

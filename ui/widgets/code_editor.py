@@ -6,8 +6,15 @@ from typing import Optional
 
 from PyQt6.QtCore import QRect, QSize, Qt
 from PyQt6.QtGui import (
-    QColor, QFont, QFontDatabase, QPainter, QPaintEvent, QSyntaxHighlighter,
-    QTextCharFormat, QTextDocument, QResizeEvent,
+    QColor,
+    QFont,
+    QFontDatabase,
+    QPainter,
+    QPaintEvent,
+    QResizeEvent,
+    QSyntaxHighlighter,
+    QTextCharFormat,
+    QTextDocument,
 )
 from PyQt6.QtWidgets import QPlainTextEdit, QWidget
 
@@ -15,6 +22,7 @@ from PyQt6.QtWidgets import QPlainTextEdit, QWidget
 try:
     from pygments import lex
     from pygments.lexers.hdl import VerilogLexer
+
     try:
         from pygments.lexers.spice import SpiceLexer  # newer pygments
     except Exception:  # pragma: no cover
@@ -122,9 +130,24 @@ class _PygmentsHighlighter(QSyntaxHighlighter):
         idx = text.find("//")
         if idx >= 0:
             self.setFormat(idx, len(text) - idx, comment_fmt)
-        for kw in ("module", "endmodule", "input", "output", "wire", "reg",
-                   "always", "assign", "begin", "end", "if", "else", "case",
-                   "endcase", "posedge", "negedge"):
+        for kw in (
+            "module",
+            "endmodule",
+            "input",
+            "output",
+            "wire",
+            "reg",
+            "always",
+            "assign",
+            "begin",
+            "end",
+            "if",
+            "else",
+            "case",
+            "endcase",
+            "posedge",
+            "negedge",
+        ):
             start = 0
             while True:
                 i = text.find(kw, start)
@@ -214,8 +237,7 @@ class CodeEditor(QPlainTextEdit):
     def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: D401
         super().resizeEvent(event)
         cr = self.contentsRect()
-        self._gutter.setGeometry(QRect(cr.left(), cr.top(),
-                                       self.line_number_width(), cr.height()))
+        self._gutter.setGeometry(QRect(cr.left(), cr.top(), self.line_number_width(), cr.height()))
 
     def paint_line_numbers(self, event: QPaintEvent) -> None:
         painter = QPainter(self._gutter)
@@ -228,9 +250,14 @@ class CodeEditor(QPlainTextEdit):
         painter.setFont(self.font())
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
-                painter.drawText(0, top, self._gutter.width() - 6,
-                                 self.fontMetrics().height(),
-                                 Qt.AlignmentFlag.AlignRight, str(block_number + 1))
+                painter.drawText(
+                    0,
+                    top,
+                    self._gutter.width() - 6,
+                    self.fontMetrics().height(),
+                    Qt.AlignmentFlag.AlignRight,
+                    str(block_number + 1),
+                )
             block = block.next()
             top = bottom
             bottom = top + int(self.blockBoundingRect(block).height())

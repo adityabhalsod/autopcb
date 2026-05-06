@@ -3,7 +3,7 @@
 Every AI request, response, retry, error and cancellation is forwarded to a
 single :class:`AILogBus` so the UI can display a live stream in the
 ``AI Log`` tab. The bus is also installed as a Python ``logging.Handler``
-that captures the ``autoic.ai`` and ``autoic.provider`` log channels, so
+that captures the ``autopcb.ai`` and ``autopcb.provider`` log channels, so
 existing ``log.info(...)`` calls automatically appear too.
 
 Persistence
@@ -32,13 +32,13 @@ import logging
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
-log = logging.getLogger("autoic.ai_log")
+log = logging.getLogger("autopcb.ai_log")
 
 
 # ---------------------------------------------------------------------------
@@ -46,9 +46,9 @@ log = logging.getLogger("autoic.ai_log")
 # ---------------------------------------------------------------------------
 @dataclass
 class AILogRecord:
-    ts: float                       # epoch seconds
-    level: str                      # "INFO" | "WARN" | "ERROR" | "DEBUG"
-    source: str                     # "request" | "response" | "retry" | "cancel" | "logger:<name>"
+    ts: float  # epoch seconds
+    level: str  # "INFO" | "WARN" | "ERROR" | "DEBUG"
+    source: str  # "request" | "response" | "retry" | "cancel" | "logger:<name>"
     message: str
     extra: dict = field(default_factory=dict)
 
@@ -72,7 +72,7 @@ class AILogBus(QObject):
     convenience helper) from anywhere to push a new entry.
     """
 
-    record_added = pyqtSignal(object)   # AILogRecord
+    record_added = pyqtSignal(object)  # AILogRecord
 
     _instance: Optional["AILogBus"] = None
     _lock = threading.Lock()
@@ -109,10 +109,15 @@ class AILogBus(QObject):
         # Header line so the file is easy to identify.
         try:
             with self._jsonl_path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "_session_started": stamp,
-                    "_pid": int(time.time()),
-                }) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "_session_started": stamp,
+                            "_pid": int(time.time()),
+                        }
+                    )
+                    + "\n"
+                )
         except OSError as e:
             log.warning("Could not open AI log file %s: %s", self._jsonl_path, e)
             self._jsonl_path = None
@@ -153,13 +158,18 @@ class AILogBus(QObject):
         path = self._transcript_dir / f"{seq:05d}_{ts}_{kind}.json"
         try:
             with path.open("w", encoding="utf-8") as f:
-                json.dump({
-                    "seq": seq,
-                    "kind": kind,
-                    "timestamp": time.time(),
-                    "timestamp_iso": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                    **payload,
-                }, f, indent=2, ensure_ascii=False)
+                json.dump(
+                    {
+                        "seq": seq,
+                        "kind": kind,
+                        "timestamp": time.time(),
+                        "timestamp_iso": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                        **payload,
+                    },
+                    f,
+                    indent=2,
+                    ensure_ascii=False,
+                )
             return path
         except OSError as e:
             log.debug("Could not write transcript %s: %s", path, e)
@@ -179,10 +189,15 @@ class AILogBus(QObject):
 
     # -- convenience helpers ---------------------------------------------
     def log(self, level: str, source: str, message: str, **extra) -> None:
-        self.emit_record(AILogRecord(
-            ts=time.time(), level=level.upper(), source=source,
-            message=message, extra=dict(extra),
-        ))
+        self.emit_record(
+            AILogRecord(
+                ts=time.time(),
+                level=level.upper(),
+                source=source,
+                message=message,
+                extra=dict(extra),
+            )
+        )
 
     def info(self, source: str, message: str, **extra) -> None:
         self.log("INFO", source, message, **extra)
@@ -210,11 +225,14 @@ class _BusHandler(logging.Handler):
             if level == "CRITICAL":
                 level = "ERROR"
             msg = record.getMessage()
-            self._bus.emit_record(AILogRecord(
-                ts=record.created, level=level,
-                source=f"logger:{record.name.split('.')[-1]}",
-                message=msg,
-            ))
+            self._bus.emit_record(
+                AILogRecord(
+                    ts=record.created,
+                    level=level,
+                    source=f"logger:{record.name.split('.')[-1]}",
+                    message=msg,
+                )
+            )
         except Exception:  # pragma: no cover
             pass
 
@@ -223,7 +241,7 @@ _INSTALLED = False
 
 
 def install_log_bridge() -> AILogBus:
-    """Attach a handler that mirrors `autoic.ai` / `autoic.provider` to the bus.
+    """Attach a handler that mirrors `autopcb.ai` / `autopcb.provider` to the bus.
 
     Idempotent — safe to call multiple times.
     """
@@ -233,7 +251,7 @@ def install_log_bridge() -> AILogBus:
         return bus
     handler = _BusHandler(bus)
     handler.setLevel(logging.INFO)
-    for name in ("autoic.ai", "autoic.provider"):
+    for name in ("autopcb.ai", "autopcb.provider"):
         lg = logging.getLogger(name)
         lg.addHandler(handler)
         # Make sure these loggers actually emit at INFO without forcing
@@ -251,5 +269,4 @@ def enable_file_persistence(base_dir) -> AILogBus:
     return bus
 
 
-__all__ = ["AILogBus", "AILogRecord",
-           "install_log_bridge", "enable_file_persistence"]
+__all__ = ["AILogBus", "AILogRecord", "install_log_bridge", "enable_file_persistence"]

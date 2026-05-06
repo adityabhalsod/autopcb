@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AutoIC — AI-Powered IC Design Desktop App.
+"""AutoPCB — AI-Powered IC Design Desktop App.
 
 Entry point. Bootstraps logging, user data dir, theme, and launches the
 Qt main window.
@@ -27,7 +27,7 @@ os.environ.setdefault("EGL_LOG_LEVEL", "fatal")
 # ---------------------------------------------------------------------------
 # Paths & constants
 # ---------------------------------------------------------------------------
-APP_NAME = "AutoIC"
+APP_NAME = "AutoPCB"
 APP_VERSION = "1.0.0"
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
@@ -35,17 +35,17 @@ THEMES_DIR = ASSETS / "themes"
 ICONS_DIR = ASSETS / "icons"
 PLUGINS_DIR = ROOT / "plugins"
 
-USER_DIR = Path.home() / ".autoic"
+USER_DIR = Path.home() / ".autopcb"
 USER_PLUGINS_DIR = USER_DIR / "plugins"
 CONFIG_PATH = USER_DIR / "config.json"
-LOG_PATH = USER_DIR / "autoic.log"
+LOG_PATH = USER_DIR / "autopcb.log"
 AI_LOG_DIR = USER_DIR / "ai_logs"
-DB_PATH = USER_DIR / "autoic.db"
+DB_PATH = USER_DIR / "autopcb.db"
 DEFAULT_OUTPUT_DIR = ROOT / "output"
 
 
 def ensure_user_dir() -> dict:
-    """Create ~/.autoic and return loaded config."""
+    """Create ~/.autopcb and return loaded config."""
     USER_DIR.mkdir(parents=True, exist_ok=True)
     USER_PLUGINS_DIR.mkdir(parents=True, exist_ok=True)
     AI_LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -72,9 +72,7 @@ def setup_logging() -> None:
     handler = logging.handlers.RotatingFileHandler(
         LOG_PATH, maxBytes=2_000_000, backupCount=3, encoding="utf-8"
     )
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    )
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
     stream = logging.StreamHandler(sys.stderr)
     stream.setFormatter(logging.Formatter("[%(levelname)s] %(name)s: %(message)s"))
 
@@ -95,12 +93,13 @@ def load_theme() -> str:  # legacy helper kept for compatibility
 def main() -> int:
     cfg = ensure_user_dir()
     setup_logging()
-    log = logging.getLogger("autoic")
+    log = logging.getLogger("autopcb")
     log.info("Starting %s v%s", APP_NAME, APP_VERSION)
 
-    # Persist every AI request/response under ~/.autoic/ai_logs/ so users can
+    # Persist every AI request/response under ~/.autopcb/ai_logs/ so users can
     # trace and debug what the model received and returned.
     from core.ai_log import enable_file_persistence, install_log_bridge
+
     install_log_bridge()
     enable_file_persistence(AI_LOG_DIR)
     log.info("AI transcripts \u2192 %s", AI_LOG_DIR)
@@ -118,7 +117,7 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(APP_VERSION)
-    app.setOrganizationName("AutoIC")
+    app.setOrganizationName("AutoPCB")
     app.setStyle("Fusion")
 
     # Font: Inter if available, otherwise system fallback.
@@ -126,6 +125,7 @@ def main() -> int:
 
     # Theme manager — single source of truth, supports live switching.
     from ui.theme_manager import ThemeManager
+
     theme_manager = ThemeManager.init(THEMES_DIR)
     theme_manager.load(cfg.get("theme", "dark"))
 
@@ -147,7 +147,8 @@ def main() -> int:
         log.error("Unhandled exception:\n%s", msg)
         try:
             from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.critical(None, "AutoIC — Unhandled Error", msg)
+
+            QMessageBox.critical(None, "AutoPCB — Unhandled Error", msg)
         except Exception:
             pass
 
@@ -160,7 +161,9 @@ def main() -> int:
     from ui.main_window import MainWindow
 
     window = MainWindow(
-        config=cfg, config_path=CONFIG_PATH, db_path=DB_PATH,
+        config=cfg,
+        config_path=CONFIG_PATH,
+        db_path=DB_PATH,
         icons_dir=ICONS_DIR,
         plugin_dirs=[PLUGINS_DIR, USER_PLUGINS_DIR],
         theme_manager=theme_manager,

@@ -6,7 +6,7 @@ worker threads or unit tests.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable
 
 VALID_IC_TYPES = {"digital", "analog", "mixed", "power"}
@@ -106,18 +106,21 @@ class SpecParser:
         try:
             supply = float(raw.get("supply_voltage", 3.3))
         except (TypeError, ValueError) as e:
-            raise SpecValidationError(f"supply_voltage must be numeric: {e}",
-                                      field_path="supply_voltage") from e
+            raise SpecValidationError(
+                f"supply_voltage must be numeric: {e}", field_path="supply_voltage"
+            ) from e
 
         input_pins = self._parse_pins(raw.get("input_pins", []), "input", "input_pins")
         output_pins = self._parse_pins(raw.get("output_pins", []), "output", "output_pins")
 
         if not input_pins and not output_pins:
             # Provide minimal defaults so downstream stages never crash.
-            input_pins = [PinDef(name="VDD", direction="input",
-                                 voltage_level=f"{supply}V", pin_type="power"),
-                          PinDef(name="GND", direction="input",
-                                 voltage_level="0V", pin_type="ground")]
+            input_pins = [
+                PinDef(
+                    name="VDD", direction="input", voltage_level=f"{supply}V", pin_type="power"
+                ),
+                PinDef(name="GND", direction="input", voltage_level="0V", pin_type="ground"),
+            ]
 
         perf = raw.get("performance_targets") or {}
         if not isinstance(perf, dict):
@@ -138,8 +141,7 @@ class SpecParser:
             constraints=[str(c) for c in constraints],
         )
 
-    def _parse_pins(self, raw_pins: Any, default_direction: str,
-                    field_path: str) -> list[PinDef]:
+    def _parse_pins(self, raw_pins: Any, default_direction: str, field_path: str) -> list[PinDef]:
         if raw_pins is None:
             return []
         if not isinstance(raw_pins, Iterable) or isinstance(raw_pins, (str, bytes)):

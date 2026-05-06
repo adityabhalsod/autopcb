@@ -4,3 +4,7 @@ anthropic>=0.40
 httpx>=0.27
 pyqtgraph>=0.13
 Pygments>=2.17
+
+# Code-quality / formatting tools (also installed as CLI commands in the venv)
+black>=24.0
+isort>=5.13

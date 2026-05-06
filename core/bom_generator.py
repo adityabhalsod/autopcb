@@ -57,14 +57,16 @@ class BOMGenerator:
             buckets.setdefault(key, []).append(c.id)
         entries: list[BOMEntry] = []
         for (ctype, value, model), refs in buckets.items():
-            entries.append(BOMEntry(
-                reference=", ".join(sorted(refs)),
-                component_type=ctype,
-                value=value,
-                model=model,
-                description=_DESCRIPTIONS.get(ctype, ctype.title()),
-                quantity=len(refs),
-            ))
+            entries.append(
+                BOMEntry(
+                    reference=", ".join(sorted(refs)),
+                    component_type=ctype,
+                    value=value,
+                    model=model,
+                    description=_DESCRIPTIONS.get(ctype, ctype.title()),
+                    quantity=len(refs),
+                )
+            )
         return entries
 
     @staticmethod
@@ -73,8 +75,9 @@ class BOMGenerator:
         writer = csv.writer(buf)
         writer.writerow(["Reference", "Type", "Value", "Model", "Description", "Quantity"])
         for e in entries:
-            writer.writerow([e.reference, e.component_type, e.value, e.model,
-                             e.description, e.quantity])
+            writer.writerow(
+                [e.reference, e.component_type, e.value, e.model, e.description, e.quantity]
+            )
         return buf.getvalue()
 
     @staticmethod

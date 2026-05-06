@@ -1,1 +1,1 @@
-"""AutoIC custom Qt widgets."""
+"""AutoPCB custom Qt widgets."""

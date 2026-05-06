@@ -1,4 +1,4 @@
-"""AutoIC core engine package.
+"""AutoPCB core engine package.
 
 Pure-Python AI + EDA logic. No Qt widgets. Safe to import in worker threads.
 """

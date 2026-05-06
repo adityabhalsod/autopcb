@@ -13,7 +13,6 @@ Lookup is by ``ComponentDef.symbol_type`` first, then ``ComponentDef.id``.
 
 from __future__ import annotations
 
-
 # ---------------------------------------------------------------------------
 # Per-symbol explanations
 # ---------------------------------------------------------------------------
@@ -39,7 +38,6 @@ FRIENDLY_DESCRIPTIONS: dict[str, str] = {
         "Vibrates at an exact frequency so the circuit knows when to do "
         "each step. Found in clocks, radios and microcontrollers."
     ),
-
     # ---- Discrete actives ---------------------------------------------
     "DIODE": (
         "Diode — a one-way valve for electricity.\n"
@@ -75,7 +73,6 @@ FRIENDLY_DESCRIPTIONS: dict[str, str] = {
         "Takes a very small voltage difference and makes it bigger. "
         "Used in sensors, audio gear and analog filters."
     ),
-
     # ---- Power / supply ------------------------------------------------
     "VSRC": (
         "Voltage source — the 'battery' of the circuit.\n"
@@ -92,7 +89,6 @@ FRIENDLY_DESCRIPTIONS: dict[str, str] = {
         "All voltages are measured against ground; every circuit must "
         "have one. Like the ground wire in your house wiring."
     ),
-
     # ---- Digital cells -------------------------------------------------
     "AND2": (
         "AND gate — outputs ON only when BOTH inputs are ON.\n"
@@ -111,10 +107,7 @@ FRIENDLY_DESCRIPTIONS: dict[str, str] = {
         "Outputs OFF only when both inputs are ON. The 'universal gate' "
         "from which every other gate can be built."
     ),
-    "NOR2": (
-        "NOR gate — opposite of OR.\n"
-        "Outputs ON only when both inputs are OFF."
-    ),
+    "NOR2": ("NOR gate — opposite of OR.\n" "Outputs ON only when both inputs are OFF."),
     "XOR2": (
         "XOR gate — outputs ON when inputs DIFFER.\n"
         "Useful for adders, comparators and 'is the bit changed?' checks."
@@ -136,19 +129,13 @@ FRIENDLY_DESCRIPTIONS: dict[str, str] = {
         "Buffer — passes the signal through without changing it.\n"
         "Used to boost weak signals and to isolate parts of the circuit."
     ),
-
     # ---- Connectors / I/O ---------------------------------------------
-    "PIN_IN": (
-        "Input pin — where a signal enters this chip from the outside world."
-    ),
-    "PIN_OUT": (
-        "Output pin — where a signal leaves this chip to drive other circuits."
-    ),
+    "PIN_IN": ("Input pin — where a signal enters this chip from the outside world."),
+    "PIN_OUT": ("Output pin — where a signal leaves this chip to drive other circuits."),
     "PIN_IO": (
         "I/O pin — a pin that can be used for input OR output, depending "
         "on how the chip is configured."
     ),
-
     # ---- Sensors -------------------------------------------------------
     "ADC": (
         "ADC (analog-to-digital converter) — the chip's 'ears'.\n"
@@ -165,10 +152,16 @@ FRIENDLY_DESCRIPTIONS: dict[str, str] = {
 
 # Common aliases so we cover both ``id`` and ``symbol_type`` usage.
 _ALIASES: dict[str, str] = {
-    "R": "RES", "C": "CAP", "L": "IND",
-    "Q_NPN": "BJT", "Q_PNP": "BJT",
-    "M_NMOS": "NMOS", "M_PMOS": "PMOS",
-    "D": "DIODE", "D_LED": "LED", "D_ZENER": "ZENER",
+    "R": "RES",
+    "C": "CAP",
+    "L": "IND",
+    "Q_NPN": "BJT",
+    "Q_PNP": "BJT",
+    "M_NMOS": "NMOS",
+    "M_PMOS": "PMOS",
+    "D": "DIODE",
+    "D_LED": "LED",
+    "D_ZENER": "ZENER",
 }
 
 
@@ -199,12 +192,15 @@ def tooltip_for(comp_def) -> str:
     name = getattr(comp_def, "name", "") or "Component"
     text = friendly_text(comp_def).replace("\n", "<br>")
     pin_count = len(getattr(comp_def, "pins", []) or [])
-    pin_line = (f"<br><i>{pin_count} pin"
-                f"{'s' if pin_count != 1 else ''}</i>") if pin_count else ""
-    return (f"<div style='max-width:320px'>"
-            f"<b>{name}</b>{pin_line}<br>{text}"
-            f"<br><br><small>Tip: drag onto the canvas, "
-            f"then drag from a pin to connect.</small></div>")
+    pin_line = (
+        (f"<br><i>{pin_count} pin" f"{'s' if pin_count != 1 else ''}</i>") if pin_count else ""
+    )
+    return (
+        f"<div style='max-width:320px'>"
+        f"<b>{name}</b>{pin_line}<br>{text}"
+        f"<br><br><small>Tip: drag onto the canvas, "
+        f"then drag from a pin to connect.</small></div>"
+    )
 
 
 __all__ = ["FRIENDLY_DESCRIPTIONS", "friendly_text", "tooltip_for"]

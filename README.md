@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ AutoIC
+# ⚡ AutoPCB
 
 **AI-Powered IC Design Desktop App**
 
@@ -12,7 +12,7 @@
 > Design integrated circuits from plain English — no ASIC experience required.
 > Works fully offline with local AI models (Ollama, LM Studio) or online with Anthropic Claude, NVIDIA AI, and OpenAI-compatible APIs.
 
-<img src="assets/icons/generate.svg" width="64" alt="AutoIC icon" />
+<img src="assets/icons/generate.svg" width="64" alt="AutoPCB icon" />
 
 </div>
 
@@ -20,7 +20,7 @@
 
 ## 🗺️ Table of Contents
 
-- [For Everyone — What Is AutoIC?](#-for-everyone--what-is-autoic)
+- [For Everyone — What Is AutoPCB?](#-for-everyone--what-is-autopcb)
 - [Quick Start (5 minutes)](#-quick-start-5-minutes)
 - [Features at a Glance](#-features-at-a-glance)
 - [Screenshots](#-screenshots)
@@ -34,9 +34,9 @@
 
 ---
 
-## 👤 For Everyone — What Is AutoIC?
+## 👤 For Everyone — What Is AutoPCB?
 
-AutoIC lets you describe an electronic chip in plain English and get back:
+AutoPCB lets you describe an electronic chip in plain English and get back:
 
 | Output | What it means |
 |--------|---------------|
@@ -46,7 +46,7 @@ AutoIC lets you describe an electronic chip in plain English and get back:
 | **Bill of Materials** | Parts list with values (resistors, capacitors, transistors…) |
 | **DRC report** | Automatic quality checks — "did you forget to add a power supply?" |
 
-**You don't need to know what any of those mean to use AutoIC.** Type a description, click Generate, and the AI fills in everything.
+**You don't need to know what any of those mean to use AutoPCB.** Type a description, click Generate, and the AI fills in everything.
 
 ### Example prompts you can type
 
@@ -89,12 +89,12 @@ You can switch between modes freely — the AI can also modify your manual schem
 ### Step 1 — Clone and install
 
 ```bash
-git clone https://github.com/your-org/autoic.git
-cd autoic
+git clone https://github.com/your-org/autopcb.git
+cd autopcb
 python install.py
 ```
 
-The installer creates a Python virtual environment, installs all dependencies, and sets up `~/.autoic/`.
+The installer creates a Python virtual environment, installs all dependencies, and sets up `~/.autopcb/`.
 
 ### Step 2 — Configure an AI provider
 
@@ -109,7 +109,7 @@ Or enter the key in **Settings → AI Provider** after launch.
 ```bash
 # Install Ollama from https://ollama.com, then:
 ollama pull llama3.2
-# AutoIC will auto-detect it — no key needed.
+# AutoPCB will auto-detect it — no key needed.
 ```
 
 **Option C — No AI (manual drawing mode)**  
@@ -153,7 +153,7 @@ That's it. The window opens with a component toolbox on the left, a canvas in th
 - **SVG**, **PNG**, and **ZIP** export of all artifacts
 
 ### 🔌 Plugin System
-- Drop a `.py` file in `~/.autoic/plugins/` — it loads on next launch
+- Drop a `.py` file in `~/.autopcb/plugins/` — it loads on next launch
 - Plugins can register: components, AI providers, exporters, DRC rules, menu actions
 - Zero friction: one `register(ctx)` function, full typed API
 
@@ -304,16 +304,16 @@ You can build and export a complete schematic without any AI or internet connect
 
 ## 🔌 Plugin System
 
-Plugins extend AutoIC with new components, AI backends, exporters, DRC rules, and menu actions — without touching the core codebase.
+Plugins extend AutoPCB with new components, AI backends, exporters, DRC rules, and menu actions — without touching the core codebase.
 
 ### Search paths (in order)
 1. `<repo>/plugins/` — bundled examples, version-controlled
-2. `~/.autoic/plugins/` — your personal plugins, never overwritten by updates
+2. `~/.autopcb/plugins/` — your personal plugins, never overwritten by updates
 
 ### Minimal plugin
 
 ```python
-# ~/.autoic/plugins/my_rf_transistor.py
+# ~/.autopcb/plugins/my_rf_transistor.py
 
 def register(ctx):
     ctx.declare(name="My RF Parts", version="1.0", author="you")
@@ -352,7 +352,7 @@ def register(ctx):
 ## 🗂️ Project Structure
 
 ```
-autoic/
+autopcb/
 ├── main.py                     ← entry point
 ├── install.py                  ← one-shot installer
 ├── requirements.txt
@@ -401,7 +401,7 @@ autoic/
 
 ## ⚙️ Configuration Reference
 
-Config file: `~/.autoic/config.json`
+Config file: `~/.autopcb/config.json`
 
 ```jsonc
 {
@@ -441,7 +441,7 @@ Config file: `~/.autoic/config.json`
   "font_size": 13,
 
   // Paths
-  "output_dir": "/home/user/autoic/output",
+  "output_dir": "/home/user/autopcb/output",
   "ngspice_path": "",              // optional: absolute path to ngspice binary
   "yosys_path": ""                 // optional: absolute path to yosys binary
 }
@@ -469,7 +469,7 @@ python install.py
 ```
 - Creates `env/` virtualenv
 - Installs all Python packages (`PyQt6`, `anthropic`, `httpx`, `Pygments`, `pyqtgraph`)
-- Creates `~/.autoic/` with default `config.json`
+- Creates `~/.autopcb/` with default `config.json`
 - Checks for optional `yosys` and `ngspice` on PATH
 - Probes PyQt6 with an offscreen Qt application
 
@@ -514,6 +514,6 @@ sudo apt install libxcb-cursor0 libxkbcommon-x11-0 libegl1 libgl1
 
 <div align="center">
 
-Made with ⚡ and Python · AutoIC — internal project
+Made with ⚡ and Python · AutoPCB — internal project
 
 </div>

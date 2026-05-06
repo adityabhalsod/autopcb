@@ -1,12 +1,12 @@
 """Example plugin — Capacitor Array.
 
-The simplest possible AutoIC plugin: registers a single new component (an
+The simplest possible AutoPCB plugin: registers a single new component (an
 8-pin capacitor array) so it appears in the Components toolbox.
 
 To use:
-    cp plugins/example_capacitor_array.py ~/.autoic/plugins/
+    cp plugins/example_capacitor_array.py ~/.autopcb/plugins/
     # or just leave it in repo's plugins/ directory
-    # …then restart AutoIC.
+    # …then restart AutoPCB.
 """
 
 from __future__ import annotations
@@ -16,12 +16,12 @@ def register(ctx) -> None:
     ctx.declare(
         name="Capacitor Array",
         version="0.1.0",
-        author="AutoIC examples",
+        author="AutoPCB examples",
         description="Adds an 8-pin capacitor array (CARRAY8) to the toolbox.",
     )
 
     # The plugin context exposes typed helpers — see core/plugin_manager.py.
-    from core.component_library import ComponentDef, PinDef, CAT_PASSIVE
+    from core.component_library import CAT_PASSIVE, ComponentDef, PinDef
 
     pins = []
     for i in range(1, 9):

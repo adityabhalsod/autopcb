@@ -9,20 +9,33 @@ from __future__ import annotations
 import math
 from typing import Optional
 
-from PyQt6.QtCore import Qt, QPointF, QRectF, pyqtSignal, QSize
+from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import (
-    QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPolygonF,
-    QTransform, QPixmap,
-)
-from PyQt6.QtWidgets import (
-    QGraphicsItem, QGraphicsScene, QGraphicsView, QGraphicsPathItem,
-    QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsRectItem,
+    QBrush,
+    QColor,
+    QFont,
+    QImage,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QPolygonF,
+    QTransform,
 )
 from PyQt6.QtSvg import QSvgGenerator
+from PyQt6.QtWidgets import (
+    QGraphicsEllipseItem,
+    QGraphicsItem,
+    QGraphicsLineItem,
+    QGraphicsPathItem,
+    QGraphicsRectItem,
+    QGraphicsScene,
+    QGraphicsTextItem,
+    QGraphicsView,
+)
 
+from core.component_library import ComponentDef, ComponentLibrary
 from core.design_engine import Component, ICDesign, Net
-from core.component_library import ComponentLibrary, ComponentDef
-
 
 # ---------------------------------------------------------------------------
 # Visual constants
@@ -73,6 +86,7 @@ class ComponentItem(QGraphicsItem):
         # Friendly tooltip for non-technical users.
         try:
             from core.component_help import tooltip_for
+
             comp_def = ComponentLibrary.instance().by_id(component.type)
             if comp_def is not None:
                 self.setToolTip(tooltip_for(comp_def))
@@ -105,8 +119,7 @@ class ComponentItem(QGraphicsItem):
         # Snap-to-grid while dragging.
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange:
             grid = 20.0
-            return QPointF(round(value.x() / grid) * grid,
-                           round(value.y() / grid) * grid)
+            return QPointF(round(value.x() / grid) * grid, round(value.y() / grid) * grid)
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             self.component.position = self.pos()
             scene = self.scene()
@@ -118,8 +131,9 @@ class ComponentItem(QGraphicsItem):
 
     # -- geometry --------------------------------------------------------
     def boundingRect(self) -> QRectF:
-        return QRectF(-SYMBOL_W / 2 - 12, -SYMBOL_H / 2 - 12,
-                      SYMBOL_W + 24, SYMBOL_H + 36)  # extra room for labels
+        return QRectF(
+            -SYMBOL_W / 2 - 12, -SYMBOL_H / 2 - 12, SYMBOL_W + 24, SYMBOL_H + 36
+        )  # extra room for labels
 
     def shape(self) -> QPainterPath:
         p = QPainterPath()
@@ -156,7 +170,7 @@ class ComponentItem(QGraphicsItem):
                 y = y0 + (i + 1) * (y1 - y0) / (count + 1)
                 self._pin_anchors[name] = QPointF(x, y)
 
-        _stack(left,  -SYMBOL_W / 2, -SYMBOL_H / 2, SYMBOL_H / 2)
+        _stack(left, -SYMBOL_W / 2, -SYMBOL_H / 2, SYMBOL_H / 2)
         _stack(right, SYMBOL_W / 2, -SYMBOL_H / 2, SYMBOL_H / 2)
         for i, name in enumerate(top):
             x = -SYMBOL_W / 2 + (i + 1) * SYMBOL_W / (len(top) + 1)
@@ -223,14 +237,20 @@ class ComponentItem(QGraphicsItem):
         font = QFont("monospace", 8)
         font.setBold(True)
         painter.setFont(font)
-        painter.drawText(QRectF(-SYMBOL_W / 2 - 6, -SYMBOL_H / 2 - 26, SYMBOL_W + 12, 14),
-                         Qt.AlignmentFlag.AlignCenter, self.component.id)
+        painter.drawText(
+            QRectF(-SYMBOL_W / 2 - 6, -SYMBOL_H / 2 - 26, SYMBOL_W + 12, 14),
+            Qt.AlignmentFlag.AlignCenter,
+            self.component.id,
+        )
         if self.component.value:
             font.setBold(False)
             painter.setFont(font)
             painter.setPen(QPen(QColor("#a6adc8")))
-            painter.drawText(QRectF(-SYMBOL_W / 2 - 6, SYMBOL_H / 2 + 4, SYMBOL_W + 12, 14),
-                             Qt.AlignmentFlag.AlignCenter, self.component.value)
+            painter.drawText(
+                QRectF(-SYMBOL_W / 2 - 6, SYMBOL_H / 2 + 4, SYMBOL_W + 12, 14),
+                Qt.AlignmentFlag.AlignCenter,
+                self.component.value,
+            )
 
     def _paint_pin_label(self, painter: QPainter, name: str, anchor: QPointF) -> None:
         painter.setPen(QPen(QColor("#a6adc8")))
@@ -281,18 +301,19 @@ class ComponentItem(QGraphicsItem):
         if exclusive:
             arc = QPainterPath()
             arc.moveTo(-SYMBOL_W / 2 - 8, -SYMBOL_H / 2)
-            arc.quadTo(QPointF(-SYMBOL_W / 4 - 8, 0),
-                       QPointF(-SYMBOL_W / 2 - 8, SYMBOL_H / 2))
+            arc.quadTo(QPointF(-SYMBOL_W / 4 - 8, 0), QPointF(-SYMBOL_W / 2 - 8, SYMBOL_H / 2))
             painter.drawPath(arc)
         if inverted:
             painter.drawEllipse(QPointF(SYMBOL_W / 2, 0), 4, 4)
 
     def _paint_not(self, painter: QPainter, inverted: bool) -> None:
-        tri = QPolygonF([
-            QPointF(-SYMBOL_W / 2, -SYMBOL_H / 2),
-            QPointF(SYMBOL_W / 2 - 8, 0),
-            QPointF(-SYMBOL_W / 2, SYMBOL_H / 2),
-        ])
+        tri = QPolygonF(
+            [
+                QPointF(-SYMBOL_W / 2, -SYMBOL_H / 2),
+                QPointF(SYMBOL_W / 2 - 8, 0),
+                QPointF(-SYMBOL_W / 2, SYMBOL_H / 2),
+            ]
+        )
         painter.drawPolygon(tri)
         if inverted:
             painter.drawEllipse(QPointF(SYMBOL_W / 2 - 4, 0), 4, 4)
@@ -310,20 +331,24 @@ class ComponentItem(QGraphicsItem):
         font = QFont("monospace", 8)
         font.setBold(True)
         painter.setFont(font)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter,
-                         self.component.type.upper())
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self.component.type.upper())
 
     def _paint_mux(self, painter: QPainter) -> None:
-        poly = QPolygonF([
-            QPointF(-SYMBOL_W / 2, -SYMBOL_H / 2),
-            QPointF(SYMBOL_W / 2, -SYMBOL_H / 2 + 14),
-            QPointF(SYMBOL_W / 2, SYMBOL_H / 2 - 14),
-            QPointF(-SYMBOL_W / 2, SYMBOL_H / 2),
-        ])
+        poly = QPolygonF(
+            [
+                QPointF(-SYMBOL_W / 2, -SYMBOL_H / 2),
+                QPointF(SYMBOL_W / 2, -SYMBOL_H / 2 + 14),
+                QPointF(SYMBOL_W / 2, SYMBOL_H / 2 - 14),
+                QPointF(-SYMBOL_W / 2, SYMBOL_H / 2),
+            ]
+        )
         painter.drawPolygon(poly)
         painter.setPen(QPen(COLOR_LABEL))
-        painter.drawText(QRectF(-SYMBOL_W / 2, -SYMBOL_H / 2, SYMBOL_W, SYMBOL_H),
-                         Qt.AlignmentFlag.AlignCenter, "MUX")
+        painter.drawText(
+            QRectF(-SYMBOL_W / 2, -SYMBOL_H / 2, SYMBOL_W, SYMBOL_H),
+            Qt.AlignmentFlag.AlignCenter,
+            "MUX",
+        )
 
     def _paint_res(self, painter: QPainter) -> None:
         # Zigzag
@@ -366,16 +391,13 @@ class ComponentItem(QGraphicsItem):
 
     def _paint_mos(self, painter: QPainter, p_type: bool) -> None:
         # Vertical channel line
-        painter.drawLine(QPointF(0, -SYMBOL_H / 2 + 8),
-                         QPointF(0, SYMBOL_H / 2 - 8))
+        painter.drawLine(QPointF(0, -SYMBOL_H / 2 + 8), QPointF(0, SYMBOL_H / 2 - 8))
         # Gate stub
         painter.drawLine(QPointF(-SYMBOL_W / 2, 0), QPointF(-10, 0))
         painter.drawLine(QPointF(-10, -16), QPointF(-10, 16))
         # Drain / Source stubs
-        painter.drawLine(QPointF(0, -SYMBOL_H / 2 + 8),
-                         QPointF(SYMBOL_W / 2, -SYMBOL_H / 2 + 8))
-        painter.drawLine(QPointF(0, SYMBOL_H / 2 - 8),
-                         QPointF(SYMBOL_W / 2, SYMBOL_H / 2 - 8))
+        painter.drawLine(QPointF(0, -SYMBOL_H / 2 + 8), QPointF(SYMBOL_W / 2, -SYMBOL_H / 2 + 8))
+        painter.drawLine(QPointF(0, SYMBOL_H / 2 - 8), QPointF(SYMBOL_W / 2, SYMBOL_H / 2 - 8))
         # Arrow
         if p_type:
             arrow = QPolygonF([QPointF(-2, 0), QPointF(-8, -3), QPointF(-8, 3)])
@@ -391,17 +413,21 @@ class ComponentItem(QGraphicsItem):
         painter.drawLine(QPointF(-6, 10), QPointF(SYMBOL_W / 2, SYMBOL_H / 2 - 8))
 
     def _paint_opamp(self, painter: QPainter) -> None:
-        tri = QPolygonF([
-            QPointF(-SYMBOL_W / 2, -SYMBOL_H / 2),
-            QPointF(-SYMBOL_W / 2, SYMBOL_H / 2),
-            QPointF(SYMBOL_W / 2 - 4, 0),
-        ])
+        tri = QPolygonF(
+            [
+                QPointF(-SYMBOL_W / 2, -SYMBOL_H / 2),
+                QPointF(-SYMBOL_W / 2, SYMBOL_H / 2),
+                QPointF(SYMBOL_W / 2 - 4, 0),
+            ]
+        )
         painter.drawPolygon(tri)
         painter.setPen(QPen(COLOR_LABEL))
-        painter.drawText(QRectF(-SYMBOL_W / 2 + 4, -SYMBOL_H / 2 + 4, 16, 12),
-                         Qt.AlignmentFlag.AlignCenter, "+")
-        painter.drawText(QRectF(-SYMBOL_W / 2 + 4, SYMBOL_H / 2 - 16, 16, 12),
-                         Qt.AlignmentFlag.AlignCenter, "−")
+        painter.drawText(
+            QRectF(-SYMBOL_W / 2 + 4, -SYMBOL_H / 2 + 4, 16, 12), Qt.AlignmentFlag.AlignCenter, "+"
+        )
+        painter.drawText(
+            QRectF(-SYMBOL_W / 2 + 4, SYMBOL_H / 2 - 16, 16, 12), Qt.AlignmentFlag.AlignCenter, "−"
+        )
 
     def _paint_vdd(self, painter: QPainter) -> None:
         painter.drawLine(QPointF(0, SYMBOL_H / 2), QPointF(0, -SYMBOL_H / 4))
@@ -411,8 +437,9 @@ class ComponentItem(QGraphicsItem):
         font = QFont("monospace", 9)
         font.setBold(True)
         painter.setFont(font)
-        painter.drawText(QRectF(-20, -SYMBOL_H / 2 - 4, 40, 14),
-                         Qt.AlignmentFlag.AlignCenter, "VDD")
+        painter.drawText(
+            QRectF(-20, -SYMBOL_H / 2 - 4, 40, 14), Qt.AlignmentFlag.AlignCenter, "VDD"
+        )
 
     def _paint_gnd(self, painter: QPainter) -> None:
         painter.drawLine(QPointF(0, -SYMBOL_H / 2), QPointF(0, 0))
@@ -432,9 +459,15 @@ class WireItem(QGraphicsPathItem):
     (or rotates), call :meth:`update_geometry` to repaint.
     """
 
-    def __init__(self, src_item: "ComponentItem", src_pin: str,
-                 dst_item: "ComponentItem", dst_pin: str,
-                 net, color: QColor) -> None:
+    def __init__(
+        self,
+        src_item: "ComponentItem",
+        src_pin: str,
+        dst_item: "ComponentItem",
+        dst_pin: str,
+        net,
+        color: QColor,
+    ) -> None:
         super().__init__()
         self.src_item = src_item
         self.src_pin = src_pin
@@ -474,9 +507,9 @@ class WireItem(QGraphicsPathItem):
 # ---------------------------------------------------------------------------
 class SchematicCanvas(QGraphicsView):
     component_selected = pyqtSignal(object)  # Component or None
-    design_changed = pyqtSignal()            # emitted when EDIT mode mutates
+    design_changed = pyqtSignal()  # emitted when EDIT mode mutates
 
-    MIME_COMPONENT = "application/x-autoic-component"
+    MIME_COMPONENT = "application/x-autopcb-component"
     GRID_SNAP = 20.0
 
     def __init__(self, parent=None) -> None:
@@ -488,8 +521,7 @@ class SchematicCanvas(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         # Repaint the entire viewport on any change so drag previews,
         # rubber-band rectangles and theme switches never leave trails.
-        self.setViewportUpdateMode(
-            QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -557,25 +589,24 @@ class SchematicCanvas(QGraphicsView):
         gen.setFileName(filepath)
         gen.setSize(QSize(int(rect.width()), int(rect.height())))
         gen.setViewBox(rect)
-        gen.setTitle(self._design.spec.name if self._design else "AutoIC schematic")
-        gen.setDescription("Generated by AutoIC")
+        gen.setTitle(self._design.spec.name if self._design else "AutoPCB schematic")
+        gen.setDescription("Generated by AutoPCB")
         painter = QPainter(gen)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        scene.render(painter, target=QRectF(0, 0, rect.width(), rect.height()),
-                     source=rect)
+        scene.render(painter, target=QRectF(0, 0, rect.width(), rect.height()), source=rect)
         painter.end()
 
     def export_png(self, filepath: str, dpi: int = 300) -> None:
         scene = self.scene()
         rect = scene.itemsBoundingRect().adjusted(-40, -40, 40, 40)
         scale = dpi / 96.0
-        img = QImage(int(rect.width() * scale), int(rect.height() * scale),
-                     QImage.Format.Format_ARGB32)
+        img = QImage(
+            int(rect.width() * scale), int(rect.height() * scale), QImage.Format.Format_ARGB32
+        )
         img.fill(COLOR_BG)
         painter = QPainter(img)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        scene.render(painter, target=QRectF(0, 0, img.width(), img.height()),
-                     source=rect)
+        scene.render(painter, target=QRectF(0, 0, img.width(), img.height()), source=rect)
         painter.end()
         img.save(filepath, "PNG")
 
@@ -629,8 +660,9 @@ class SchematicCanvas(QGraphicsView):
             return
         xs = [c.position.x() for c in design.components]
         ys = [c.position.y() for c in design.components]
-        rect = QRectF(min(xs) - 200, min(ys) - 200,
-                      max(xs) - min(xs) + 800, max(ys) - min(ys) + 600)
+        rect = QRectF(
+            min(xs) - 200, min(ys) - 200, max(xs) - min(xs) + 800, max(ys) - min(ys) + 600
+        )
         scene.setSceneRect(rect)
 
     def drawBackground(self, painter: QPainter, rect: QRectF) -> None:
@@ -638,6 +670,7 @@ class SchematicCanvas(QGraphicsView):
         theme_name = ""
         try:
             from .theme_manager import ThemeManager
+
             _tm = ThemeManager.instance()
             theme_name = (getattr(_tm, "current", "") or "").lower()
             _bg = QColor(_tm.color("canvas_bg"))
@@ -685,15 +718,16 @@ class SchematicCanvas(QGraphicsView):
             y += step
 
     # -- PCB renderer ---------------------------------------------------
-    def _draw_pcb_background(self, painter: QPainter, rect: QRectF,
-                             bg: QColor, grid: QColor, grid_major: QColor) -> None:
+    def _draw_pcb_background(
+        self, painter: QPainter, rect: QRectF, bg: QColor, grid: QColor, grid_major: QColor
+    ) -> None:
         """Draw a printed-circuit-board look: FR-4 substrate, copper traces,
         gold-plated through-hole pads, and silkscreen reference text.
         Used only when the active theme is ``pcb`` so the canvas resembles a
         real board rather than a flat schematic grid.
         """
         from PyQt6.QtCore import QRect
-        from PyQt6.QtGui import QRadialGradient, QFont
+        from PyQt6.QtGui import QFont, QRadialGradient
 
         # 1. FR-4 substrate fill with subtle radial vignette.
         grad = QRadialGradient(rect.center(), max(rect.width(), rect.height()) / 1.2)
@@ -728,8 +762,7 @@ class SchematicCanvas(QGraphicsView):
             row += 1
 
         # 3. Solder mask "scratches" — faint major grid for a sense of scale.
-        major_pen = QPen(QColor(grid_major.red(), grid_major.green(),
-                                grid_major.blue(), 40))
+        major_pen = QPen(QColor(grid_major.red(), grid_major.green(), grid_major.blue(), 40))
         major_pen.setWidthF(0.6)
         painter.setPen(major_pen)
         x = left
@@ -744,9 +777,9 @@ class SchematicCanvas(QGraphicsView):
             y += step
 
         # 4. Through-hole pads at every grid intersection.
-        pad_outer = QColor(20, 70, 50)        # darker copper-on-mask ring
-        pad_gold = QColor(230, 195, 80)       # plated gold
-        pad_drill = QColor(20, 30, 25)        # drill hole
+        pad_outer = QColor(20, 70, 50)  # darker copper-on-mask ring
+        pad_gold = QColor(230, 195, 80)  # plated gold
+        pad_drill = QColor(20, 30, 25)  # drill hole
         painter.setPen(Qt.PenStyle.NoPen)
         x = left
         while x < rect.right():
@@ -822,8 +855,7 @@ class SchematicCanvas(QGraphicsView):
             event.accept()
             return
         # In EDIT mode, LMB on a pin starts a wire (suppresses component drag).
-        if (self._edit_mode and event.button() == Qt.MouseButton.LeftButton
-                and not self._wiring):
+        if self._edit_mode and event.button() == Qt.MouseButton.LeftButton and not self._wiring:
             scene_pos = self.mapToScene(event.position().toPoint())
             hit = self._pin_hit(scene_pos)
             if hit is not None:
@@ -837,7 +869,9 @@ class SchematicCanvas(QGraphicsView):
         if self._panning:
             delta = event.position() - self._pan_start
             self._pan_start = event.position()
-            self.horizontalScrollBar().setValue(int(self.horizontalScrollBar().value() - delta.x()))
+            self.horizontalScrollBar().setValue(
+                int(self.horizontalScrollBar().value() - delta.x())
+            )
             self.verticalScrollBar().setValue(int(self.verticalScrollBar().value() - delta.y()))
             event.accept()
             return
@@ -896,17 +930,24 @@ class SchematicCanvas(QGraphicsView):
     def _ensure_design(self) -> ICDesign:
         if self._design is None:
             from core.spec_parser import ICSpec
+
             self._design = ICDesign(
-                spec=ICSpec(name="untitled", ic_type="digital",
-                            functional_description="Manual schematic"),
-                components=[], nets=[], rationale={}, timing_estimates={},
-                power_estimate_mw=0.0, area_estimate_um2=0.0,
+                spec=ICSpec(
+                    name="untitled", ic_type="digital", functional_description="Manual schematic"
+                ),
+                components=[],
+                nets=[],
+                rationale={},
+                timing_estimates={},
+                power_estimate_mw=0.0,
+                area_estimate_um2=0.0,
             )
             self._draw_grid(self._design)
         return self._design
 
-    def add_component_at(self, comp_id: str, scene_pos: QPointF,
-                         params: Optional[dict] = None) -> Optional[Component]:
+    def add_component_at(
+        self, comp_id: str, scene_pos: QPointF, params: Optional[dict] = None
+    ) -> Optional[Component]:
         """Instantiate a ComponentDef onto the canvas (EDIT mode helper)."""
         cdef = ComponentLibrary.instance().by_id(comp_id)
         if cdef is None:
@@ -916,8 +957,11 @@ class SchematicCanvas(QGraphicsView):
         merged_params = dict(cdef.default_params)
         if params:
             merged_params.update(params)
-        value_str = " ".join(f"{k}={v}" for k, v in merged_params.items()
-                             if k in ("value", "voltage", "vout", "vref"))
+        value_str = " ".join(
+            f"{k}={v}"
+            for k, v in merged_params.items()
+            if k in ("value", "voltage", "vout", "vref")
+        )
         comp = Component(
             id=ref,
             type=cdef.id,
@@ -1039,8 +1083,9 @@ class SchematicCanvas(QGraphicsView):
         super().keyPressEvent(event)
 
     # -- wiring helpers --------------------------------------------------
-    def _pin_hit(self, scene_pos: QPointF, tol: float = 8.0
-                 ) -> Optional[tuple["ComponentItem", str]]:
+    def _pin_hit(
+        self, scene_pos: QPointF, tol: float = 8.0
+    ) -> Optional[tuple["ComponentItem", str]]:
         """Find the (item, pin) closest to *scene_pos* within *tol* px."""
         best = None
         for it in self._items:
@@ -1055,6 +1100,7 @@ class SchematicCanvas(QGraphicsView):
         # Net colour from theme manager (signal by default).
         try:
             from .theme_manager import ThemeManager
+
             color = QColor(ThemeManager.instance().net_color("signal"))
         except Exception:  # noqa: BLE001
             color = COLOR_NET
@@ -1092,8 +1138,9 @@ class SchematicCanvas(QGraphicsView):
         self._wiring = False
         self.setCursor(Qt.CursorShape.ArrowCursor)
 
-    def _commit_wire(self, src_item: "ComponentItem", src_pin: str,
-                     dst_item: "ComponentItem", dst_pin: str) -> None:
+    def _commit_wire(
+        self, src_item: "ComponentItem", src_pin: str, dst_item: "ComponentItem", dst_pin: str
+    ) -> None:
         design = self._ensure_design()
         src_ref = f"{src_item.component.id}.{src_pin}"
         dst_ref = f"{dst_item.component.id}.{dst_pin}"
@@ -1121,6 +1168,7 @@ class SchematicCanvas(QGraphicsView):
 
         try:
             from .theme_manager import ThemeManager
+
             color = QColor(ThemeManager.instance().net_color(target_net.net_type))
         except Exception:  # noqa: BLE001
             color = _net_color(target_net)
@@ -1130,8 +1178,9 @@ class SchematicCanvas(QGraphicsView):
         self.design_changed.emit()
 
     @staticmethod
-    def _infer_net_type(src_item: "ComponentItem", src_pin: str,
-                        dst_item: "ComponentItem", dst_pin: str) -> str:
+    def _infer_net_type(
+        src_item: "ComponentItem", src_pin: str, dst_item: "ComponentItem", dst_pin: str
+    ) -> str:
         s_t = (src_item.component.type or "").upper()
         d_t = (dst_item.component.type or "").upper()
         if s_t in ("VDD", "VCC") or d_t in ("VDD", "VCC"):

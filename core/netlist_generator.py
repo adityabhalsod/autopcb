@@ -14,7 +14,7 @@ from typing import Iterable
 
 from .design_engine import ICDesign
 
-log = logging.getLogger("autoic.spice")
+log = logging.getLogger("autopcb.spice")
 
 
 SPICE_PRIMITIVE_PREFIXES = {"R", "C", "L", "M", "Q", "X", "V", "I", "D"}
@@ -31,7 +31,7 @@ class NetlistGenerator:
         ts = _dt.datetime.now(_dt.timezone.utc).isoformat()
         spec = design.spec
         return (
-            f"* AutoIC SPICE netlist — {spec.name}\n"
+            f"* AutoPCB SPICE netlist — {spec.name}\n"
             f"* Generated: {ts}\n"
             f"* IC type: {spec.ic_type} / Tech: {spec.technology_node} / Vdd: {spec.supply_voltage} V\n"
         )
@@ -108,7 +108,7 @@ class NetlistGenerator:
     @classmethod
     def fallback(cls, design: ICDesign) -> str:
         spec = design.spec
-        lines = [f".title {spec.name}", "* AutoIC fallback netlist"]
+        lines = [f".title {spec.name}", "* AutoPCB fallback netlist"]
         lines.append(f"VDD VDD 0 DC {spec.supply_voltage}")
         # Emit primitives based on component type prefixes.
         for c in design.components:
@@ -138,13 +138,15 @@ class NetlistGenerator:
                 # Subcircuit fallback for digital cells.
                 lines.append(f"X{c.id} {pin_nets} {c.model or t.lower()}")
         # Default models so ngspice doesn't choke on a smoke run.
-        lines.extend([
-            ".model nmos_default NMOS (LEVEL=1 VTO=0.5 KP=120u)",
-            ".model pmos_default PMOS (LEVEL=1 VTO=-0.5 KP=40u)",
-            ".model npn_default NPN (BF=100)",
-            ".model D D",
-            ".op",
-        ])
+        lines.extend(
+            [
+                ".model nmos_default NMOS (LEVEL=1 VTO=0.5 KP=120u)",
+                ".model pmos_default PMOS (LEVEL=1 VTO=-0.5 KP=40u)",
+                ".model npn_default NPN (BF=100)",
+                ".model D D",
+                ".op",
+            ]
+        )
         if spec.ic_type in ("digital", "power"):
             lines.append(".tran 1n 100n")
         if spec.ic_type == "analog":

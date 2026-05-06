@@ -12,7 +12,7 @@ show progress between each stage.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Optional
 
 from PyQt6.QtCore import QObject, QPointF, pyqtSignal
@@ -20,7 +20,7 @@ from PyQt6.QtCore import QObject, QPointF, pyqtSignal
 from .ai_engine import AIEngine, AIWorker
 from .spec_parser import ICSpec, SpecParser
 
-log = logging.getLogger("autoic.design")
+log = logging.getLogger("autopcb.design")
 
 
 # ---------------------------------------------------------------------------
@@ -107,14 +107,19 @@ class ICDesign:
     @classmethod
     def from_dict(cls, raw: dict) -> "ICDesign":
         spec_raw = raw.get("spec") or {}
-        spec = SpecParser().parse(spec_raw) if spec_raw else ICSpec(name="unnamed", ic_type="digital")
+        spec = (
+            SpecParser().parse(spec_raw) if spec_raw else ICSpec(name="unnamed", ic_type="digital")
+        )
         return cls(
             spec=spec,
             components=[Component.from_dict(c) for c in raw.get("components", [])],
             nets=[Net.from_dict(n) for n in raw.get("nets", [])],
             rationale=dict(raw.get("rationale") or {}),
-            timing_estimates={k: float(v) for k, v in (raw.get("timing_estimates") or {}).items()
-                              if isinstance(v, (int, float))},
+            timing_estimates={
+                k: float(v)
+                for k, v in (raw.get("timing_estimates") or {}).items()
+                if isinstance(v, (int, float))
+            },
             power_estimate_mw=float(raw.get("power_estimate_mw", 0.0) or 0.0),
             area_estimate_um2=float(raw.get("area_estimate_um2", 0.0) or 0.0),
         )
@@ -139,8 +144,8 @@ class ICDesign:
 # ---------------------------------------------------------------------------
 # Spacing between component slots. Increased so labels (reference, value,
 # pin names) never overlap with neighbouring symbols on dense schematics.
-GRID_X = 180   # horizontal spacing between components in a row
-GRID_Y = 160   # vertical spacing between rows
+GRID_X = 180  # horizontal spacing between components in a row
+GRID_Y = 160  # vertical spacing between rows
 ROW_MARGIN_X = 100
 ROW_MARGIN_Y = 100
 MAX_ROW_LEN = 10  # break long signal rows so the canvas isn't a single line
@@ -158,8 +163,26 @@ POWER_TYPES = {"VDD", "VSRC", "ISRC"}
 GROUND_TYPES = {"GND", "VSS"}
 PASSIVE_TYPES = {"RES", "CAP", "IND", "DIODE"}
 ACTIVE_TYPES = {
-    "NMOS", "PMOS", "BJT", "OPAMP", "AND2", "OR2", "NAND2", "NOR2", "XOR2",
-    "NOT", "MUX2", "MUX4", "DFF", "TFF", "JKFF", "LATCH", "BUF", "ADDER", "FA", "HA",
+    "NMOS",
+    "PMOS",
+    "BJT",
+    "OPAMP",
+    "AND2",
+    "OR2",
+    "NAND2",
+    "NOR2",
+    "XOR2",
+    "NOT",
+    "MUX2",
+    "MUX4",
+    "DFF",
+    "TFF",
+    "JKFF",
+    "LATCH",
+    "BUF",
+    "ADDER",
+    "FA",
+    "HA",
 }
 
 
@@ -198,7 +221,7 @@ def auto_place(components: list[Component]) -> None:
         items = sorted(rows[r], key=lambda c: c.id)
         # Split into chunks of MAX_ROW_LEN so very wide rows wrap.
         for chunk_idx in range(0, len(items), MAX_ROW_LEN):
-            chunk = items[chunk_idx:chunk_idx + MAX_ROW_LEN]
+            chunk = items[chunk_idx : chunk_idx + MAX_ROW_LEN]
             # The first chunk stays on the original row; later chunks go
             # below all standard rows so we don't collide with other lanes.
             row_y_index = r if chunk_idx == 0 else next_extra_row
@@ -226,11 +249,11 @@ class DesignEngine(QObject):
     """
 
     progress = pyqtSignal(str)
-    design_ready = pyqtSignal(object)   # ICDesign
+    design_ready = pyqtSignal(object)  # ICDesign
     verilog_ready = pyqtSignal(str)
     spice_ready = pyqtSignal(str)
-    drc_ready = pyqtSignal(object)      # DRCReport
-    bom_ready = pyqtSignal(list)        # list[BOMEntry]
+    drc_ready = pyqtSignal(object)  # DRCReport
+    bom_ready = pyqtSignal(list)  # list[BOMEntry]
     pipeline_finished = pyqtSignal(object)  # full ICDesign + artifacts dict
     error = pyqtSignal(str)
 
@@ -240,9 +263,9 @@ class DesignEngine(QObject):
         self._current_worker: Optional[AIWorker] = None
 
     # -- single-step API -------------------------------------------------
-    def design(self, spec: ICSpec,
-               on_done: Callable[[ICDesign], None],
-               on_error: Callable[[str], None]) -> AIWorker:
+    def design(
+        self, spec: ICSpec, on_done: Callable[[ICDesign], None], on_error: Callable[[str], None]
+    ) -> AIWorker:
         """Run only the design (topology+components+nets+rationale) stage."""
         self.progress.emit("Designing topology…")
         worker = self._ai.generate_design(spec.to_dict())
@@ -256,19 +279,24 @@ class DesignEngine(QObject):
                     components=[Component.from_dict(c) for c in payload.get("components", [])],
                     nets=[Net.from_dict(n) for n in payload.get("nets", [])],
                     rationale=dict(payload.get("rationale") or {}),
-                    timing_estimates={k: float(v) for k, v in (payload.get("timing_estimates") or {}).items()
-                                      if isinstance(v, (int, float))},
+                    timing_estimates={
+                        k: float(v)
+                        for k, v in (payload.get("timing_estimates") or {}).items()
+                        if isinstance(v, (int, float))
+                    },
                     power_estimate_mw=float(payload.get("power_estimate_mw") or 0.0),
                     area_estimate_um2=float(payload.get("area_estimate_um2") or 0.0),
                 )
                 # Ensure VDD/GND nets exist.
                 names = {n.name.upper() for n in design.nets}
                 if "VDD" not in names:
-                    design.nets.append(Net(id=f"N_VDD", name="VDD",
-                                           connected_pins=[], net_type="power"))
+                    design.nets.append(
+                        Net(id=f"N_VDD", name="VDD", connected_pins=[], net_type="power")
+                    )
                 if "GND" not in names:
-                    design.nets.append(Net(id=f"N_GND", name="GND",
-                                           connected_pins=[], net_type="ground"))
+                    design.nets.append(
+                        Net(id=f"N_GND", name="GND", connected_pins=[], net_type="ground")
+                    )
                 auto_place(design.components)
                 self.design_ready.emit(design)
                 on_done(design)

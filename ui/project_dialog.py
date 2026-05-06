@@ -6,16 +6,31 @@ from typing import Optional
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QHeaderView,
-    QLineEdit, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
-    QTabWidget, QTextEdit, QVBoxLayout, QWidget,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QHBoxLayout,
+    QHeaderView,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from core.project_store import ProjectStore
 
-
-IC_TYPES = [("Digital", "digital"), ("Analog", "analog"),
-            ("Mixed-Signal", "mixed"), ("Power", "power")]
+IC_TYPES = [
+    ("Digital", "digital"),
+    ("Analog", "analog"),
+    ("Mixed-Signal", "mixed"),
+    ("Power", "power"),
+]
 
 
 class _NewTab(QWidget):
@@ -44,10 +59,11 @@ class _NewTab(QWidget):
     def _on_create(self) -> None:
         name = self._name.text().strip()
         if not name:
-            QMessageBox.warning(self, "AutoIC", "Project name required.")
+            QMessageBox.warning(self, "AutoPCB", "Project name required.")
             return
-        self.create_requested.emit(name, self._type.currentData(),
-                                   self._desc.toPlainText().strip())
+        self.create_requested.emit(
+            name, self._type.currentData(), self._desc.toPlainText().strip()
+        )
 
 
 class _OpenTab(QWidget):
@@ -102,9 +118,10 @@ class _OpenTab(QWidget):
         pid = self._selected_id()
         if pid is None:
             return
-        if QMessageBox.question(self, "Delete project",
-                                "Delete this project and all versions?") \
-                == QMessageBox.StandardButton.Yes:
+        if (
+            QMessageBox.question(self, "Delete project", "Delete this project and all versions?")
+            == QMessageBox.StandardButton.Yes
+        ):
             self._store.delete_project(int(pid))
             self.refresh()
             self.delete_requested.emit(int(pid))
@@ -160,7 +177,7 @@ class ProjectDialog(QDialog):
 
     def __init__(self, store: ProjectStore, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("AutoIC — Projects")
+        self.setWindowTitle("AutoPCB — Projects")
         self.resize(720, 460)
         self._store = store
 

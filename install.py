@@ -1,8 +1,8 @@
-"""AutoIC v2 installer.
+"""AutoPCB v2 installer.
 
-One-shot setup for AutoIC. Creates the local virtual environment (if missing),
+One-shot setup for AutoPCB. Creates the local virtual environment (if missing),
 installs Python requirements, prepares the user data directory
-(`~/.autoic/`), seeds a default `config.json` with multi-provider AI
+(`~/.autopcb/`), seeds a default `config.json` with multi-provider AI
 settings, and verifies that the optional EDA toolchain (yosys, ngspice) is
 on PATH.
 
@@ -29,10 +29,10 @@ REQUIREMENTS = ROOT / "requirements.txt"
 PLUGINS_DIR = ROOT / "plugins"
 THEMES_DIR = ROOT / "assets" / "themes"
 
-USER_DIR = Path.home() / ".autoic"
+USER_DIR = Path.home() / ".autopcb"
 USER_PLUGINS_DIR = USER_DIR / "plugins"
 CONFIG_PATH = USER_DIR / "config.json"
-LOG_PATH = USER_DIR / "autoic.log"
+LOG_PATH = USER_DIR / "autopcb.log"
 
 PY_MIN = (3, 11)
 
@@ -71,7 +71,7 @@ def err(msg: str) -> None:
 def banner() -> None:
     print(f"{C.M}{C.BOLD}")
     print("  ╔═══════════════════════════════════════════════════════════╗")
-    print("  ║              AutoIC v2 — Installer & Bootstrap           ║")
+    print("  ║              AutoPCB v2 — Installer & Bootstrap           ║")
     print("  ║   AI-Powered IC Design Desktop App (PyQt6)               ║")
     print("  ║   Multi-provider AI · Offline manual mode · Plugins      ║")
     print("  ╚═══════════════════════════════════════════════════════════╝")
@@ -114,9 +114,48 @@ def pip_install(py: Path, reinstall: bool) -> None:
     cmd = [str(py), "-m", "pip", "install", "-r", str(REQUIREMENTS)]
     if reinstall:
         cmd.insert(-2, "--force-reinstall")
-    info(f"Installing requirements (PyQt6, anthropic, httpx, Pygments, pyqtgraph …): {' '.join(cmd)}")
+    info(
+        f"Installing requirements (PyQt6, anthropic, httpx, Pygments, pyqtgraph, black, isort …): {' '.join(cmd)}"
+    )
     subprocess.check_call(cmd)
     ok("Python requirements installed")
+
+
+def run_formatters(py: Path) -> None:
+    """Run isort then black over the entire project source tree."""
+    src_dirs = [str(ROOT / d) for d in ("core", "ui", "plugins") if (ROOT / d).is_dir()]
+    src_dirs.append(str(ROOT / "main.py"))
+    src_dirs.append(str(ROOT / "install.py"))
+
+    info("Running isort (import sorting) …")
+    subprocess.check_call(
+        [
+            str(py),
+            "-m",
+            "isort",
+            "--profile",
+            "black",
+            "--line-length",
+            "99",
+            *src_dirs,
+        ]
+    )
+    ok("isort done")
+
+    info("Running black (code formatting) …")
+    subprocess.check_call(
+        [
+            str(py),
+            "-m",
+            "black",
+            "--line-length",
+            "99",
+            "--target-version",
+            "py311",
+            *src_dirs,
+        ]
+    )
+    ok("black done")
 
 
 def ensure_user_dir() -> None:
@@ -194,11 +233,26 @@ def _maybe_migrate_config() -> None:
         api_key = cfg.get("api_key", "")
         cfg["ai_provider"] = {
             "active": "anthropic" if api_key else "ollama",
-            "anthropic": {"api_key": api_key, "model": cfg.get("model", "claude-sonnet-4-20250514")},
+            "anthropic": {
+                "api_key": api_key,
+                "model": cfg.get("model", "claude-sonnet-4-20250514"),
+            },
             "ollama": {"base_url": "http://localhost:11434", "api_key": "", "model": "llama3.2"},
-            "lmstudio": {"base_url": "http://localhost:1234", "api_key": "", "model": "local-model"},
-            "nvidia": {"base_url": "https://integrate.api.nvidia.com/v1", "api_key": "", "model": "meta/llama-3.1-70b-instruct"},
-            "openai_router": {"base_url": "http://localhost:4000/v1", "api_key": "", "model": "gpt-4o-mini"},
+            "lmstudio": {
+                "base_url": "http://localhost:1234",
+                "api_key": "",
+                "model": "local-model",
+            },
+            "nvidia": {
+                "base_url": "https://integrate.api.nvidia.com/v1",
+                "api_key": "",
+                "model": "meta/llama-3.1-70b-instruct",
+            },
+            "openai_router": {
+                "base_url": "http://localhost:4000/v1",
+                "api_key": "",
+                "model": "gpt-4o-mini",
+            },
         }
         dirty = True
     if "grid_size" not in cfg:
@@ -224,7 +278,9 @@ def check_eda_tools() -> None:
     info("Checking optional EDA tools (used to validate generated artifacts) ...")
     is_linux = platform.system() == "Linux"
     yosys_hint = "sudo apt install yosys" if is_linux else "see https://yosyshq.net/yosys/"
-    ngspice_hint = "sudo apt install ngspice" if is_linux else "see http://ngspice.sourceforge.net/"
+    ngspice_hint = (
+        "sudo apt install ngspice" if is_linux else "see http://ngspice.sourceforge.net/"
+    )
     check_tool("yosys", yosys_hint)
     check_tool("ngspice", ngspice_hint)
 
@@ -276,7 +332,7 @@ def print_next_steps(py: Path) -> None:
     print(f"   {C.G}Option B — Ollama (free, local, works offline):{C.END}")
     print(f"     # Install Ollama from https://ollama.com, then:")
     print(f"     ollama pull llama3.2")
-    print(f"     # AutoIC will auto-detect it in Settings → AI Provider")
+    print(f"     # AutoPCB will auto-detect it in Settings → AI Provider")
     print(f"   {C.G}Option C — No AI (demo / manual canvas mode):{C.END}")
     print(f"     # Use the Echo provider (bundled plugin) for zero-config demo.")
     print(f"     # Enable via Settings → AI Provider → select 'echo' (after loading plugins)")
@@ -285,8 +341,12 @@ def print_next_steps(py: Path) -> None:
     print(f"     Drop .py plugin files into: {USER_PLUGINS_DIR}")
     print(f"     They auto-load on next launch — no restart script needed.")
     print()
-    print(f"{C.C}4) Launch AutoIC:{C.END}")
+    print(f"{C.C}4) Launch AutoPCB:{C.END}")
     print(f"     python main.py")
+    print()
+    print(f"{C.C}5) Format code at any time:{C.END}")
+    print(f"     python install.py --format")
+    print(f"   (runs isort + black over core/, ui/, plugins/, main.py, install.py)")
     print()
     print(f"{C.Y}Tip:{C.END} Toggle dark/light theme at any time with {C.BOLD}Ctrl+T{C.END}")
     print(f"{C.Y}Tip:{C.END} Press {C.BOLD}R{C.END} on the canvas to rotate a selected component")
@@ -307,13 +367,25 @@ def check_assets() -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="AutoIC v2 installer")
+    parser = argparse.ArgumentParser(description="AutoPCB v2 installer")
     parser.add_argument("--check", action="store_true", help="Only verify environment")
     parser.add_argument("--reinstall", action="store_true", help="Force reinstall requirements")
+    parser.add_argument(
+        "--format", action="store_true", help="Run isort + black over the project source and exit"
+    )
     args = parser.parse_args()
 
     banner()
     check_python()
+
+    if args.format:
+        py = venv_python()
+        if not py.exists():
+            err("Virtualenv missing — run `python install.py` first to install dependencies")
+            sys.exit(1)
+        run_formatters(py)
+        ok("Formatting complete.")
+        return
 
     if args.check:
         py = venv_python()
@@ -333,10 +405,11 @@ def main() -> None:
     ensure_user_dir()
     check_assets()
     check_eda_tools()
+    run_formatters(py)
     check_qt_runtime()
 
     print()
-    ok("AutoIC v2 installation complete.")
+    ok("AutoPCB v2 installation complete.")
     print_next_steps(py)
 
 

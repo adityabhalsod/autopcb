@@ -12,19 +12,43 @@ from pathlib import Path
 
 from PyQt6.QtCore import QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QButtonGroup, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
-    QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QRadioButton,
-    QSpinBox, QStackedWidget, QTabWidget, QTextEdit, QVBoxLayout, QWidget,
+    QButtonGroup,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QRadioButton,
+    QSpinBox,
+    QStackedWidget,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from core.ai_provider import (
-    ALL_PROVIDERS, AIProviderConfig, AIProviderError, AIProviderFactory,
-    DEFAULT_BASE_URLS, DEFAULT_MODELS, PROVIDER_ANTHROPIC, PROVIDER_LABELS,
-    PROVIDER_LMSTUDIO, PROVIDER_NVIDIA, PROVIDER_OLLAMA, PROVIDER_OPENAI_ROUTER,
-    is_wsl, windows_host_ip,
+    ALL_PROVIDERS,
+    DEFAULT_BASE_URLS,
+    DEFAULT_MODELS,
+    PROVIDER_ANTHROPIC,
+    PROVIDER_LABELS,
+    PROVIDER_LMSTUDIO,
+    PROVIDER_NVIDIA,
+    PROVIDER_OLLAMA,
+    PROVIDER_OPENAI_ROUTER,
+    AIProviderConfig,
+    AIProviderError,
+    AIProviderFactory,
+    is_wsl,
+    windows_host_ip,
 )
 
-log = logging.getLogger("autoic.settings")
+log = logging.getLogger("autopcb.settings")
 
 ANTHROPIC_MODELS = [
     "claude-sonnet-4-20250514",
@@ -125,7 +149,9 @@ class _ProviderTab(QWidget):
             toggle.setFixedWidth(34)
             toggle.toggled.connect(
                 lambda v: api.setEchoMode(
-                    QLineEdit.EchoMode.Normal if v else QLineEdit.EchoMode.Password))
+                    QLineEdit.EchoMode.Normal if v else QLineEdit.EchoMode.Password
+                )
+            )
             row = QHBoxLayout()
             row.setContentsMargins(0, 0, 0, 0)
             row.addWidget(api, 1)
@@ -231,7 +257,8 @@ class _ProviderTab(QWidget):
         worker = _ProbeWorker(cfg)
         worker.finished_ok.connect(self._on_test_done)
         worker.finished.connect(
-            lambda: self._workers.remove(worker) if worker in self._workers else None)
+            lambda: self._workers.remove(worker) if worker in self._workers else None
+        )
         self._workers.append(worker)
         worker.start()
 
@@ -268,40 +295,50 @@ class _ProviderTab(QWidget):
                 # The provider may have rewritten its base_url to a working
                 # WSL fallback. Reflect that in the UI so Save persists it.
                 live_cfg = AIProviderFactory.create(cfg).config
-                if (active_key in (PROVIDER_OLLAMA, PROVIDER_LMSTUDIO,
-                                   PROVIDER_OPENAI_ROUTER)
-                        and live_cfg.base_url
-                        and live_cfg.base_url != cfg.base_url):
-                    self._pages[active_key]["base_url"].setText(
-                        live_cfg.base_url)
-                self._status.setText(f"✅ Loaded {len(models)} models from "
-                                     f"{PROVIDER_LABELS[active_key]}")
+                if (
+                    active_key in (PROVIDER_OLLAMA, PROVIDER_LMSTUDIO, PROVIDER_OPENAI_ROUTER)
+                    and live_cfg.base_url
+                    and live_cfg.base_url != cfg.base_url
+                ):
+                    self._pages[active_key]["base_url"].setText(live_cfg.base_url)
+                self._status.setText(
+                    f"✅ Loaded {len(models)} models from " f"{PROVIDER_LABELS[active_key]}"
+                )
             else:
                 hint = ""
-                if (is_wsl() and active_key in (PROVIDER_OLLAMA, PROVIDER_LMSTUDIO)
-                        and "localhost" in (cfg.base_url or "")):
+                if (
+                    is_wsl()
+                    and active_key in (PROVIDER_OLLAMA, PROVIDER_LMSTUDIO)
+                    and "localhost" in (cfg.base_url or "")
+                ):
                     host = windows_host_ip()
                     if host:
-                        hint = (f"  Tip: WSL detected — try "
-                                f"http://{host}:11434  (Windows host).  "
-                                f"Also set OLLAMA_HOST=0.0.0.0 on Windows.")
+                        hint = (
+                            f"  Tip: WSL detected — try "
+                            f"http://{host}:11434  (Windows host).  "
+                            f"Also set OLLAMA_HOST=0.0.0.0 on Windows."
+                        )
                     else:
-                        hint = ("  Tip: WSL detected — set OLLAMA_HOST=0.0.0.0 "
-                                "on Windows and use the Windows host IP "
-                                "(run `ip route` in WSL to find it).")
+                        hint = (
+                            "  Tip: WSL detected — set OLLAMA_HOST=0.0.0.0 "
+                            "on Windows and use the Windows host IP "
+                            "(run `ip route` in WSL to find it)."
+                        )
                 self._status.setText(
-                    f"⚠️ No models returned ({msg}) — type the model name "
-                    f"manually.{hint}")
+                    f"⚠️ No models returned ({msg}) — type the model name " f"manually.{hint}"
+                )
 
         worker.finished_ok.connect(_done)
         worker.finished.connect(
-            lambda: self._workers.remove(worker) if worker in self._workers else None)
+            lambda: self._workers.remove(worker) if worker in self._workers else None
+        )
         self._workers.append(worker)
         worker.start()
 
     def _detect_local(self) -> None:
         found = AIProviderFactory.detect_available(
-            anthropic_key=self._pages[PROVIDER_ANTHROPIC]["api_key"].text())
+            anthropic_key=self._pages[PROVIDER_ANTHROPIC]["api_key"].text()
+        )
         if not found:
             self._status.setText("No local AI providers detected.")
         else:
@@ -366,25 +403,25 @@ class _PathsTab(QWidget):
     def __init__(self, config: dict) -> None:
         super().__init__()
         layout = QFormLayout(self)
-        self._out = self._make_row(layout, "Output directory:",
-                                   config.get("output_dir", ""), dir_only=True)
-        self._ngspice = self._make_row(layout, "ngspice path:",
-                                       config.get("ngspice_path", ""), dir_only=False)
-        self._yosys = self._make_row(layout, "yosys path:",
-                                     config.get("yosys_path", ""), dir_only=False)
+        self._out = self._make_row(
+            layout, "Output directory:", config.get("output_dir", ""), dir_only=True
+        )
+        self._ngspice = self._make_row(
+            layout, "ngspice path:", config.get("ngspice_path", ""), dir_only=False
+        )
+        self._yosys = self._make_row(
+            layout, "yosys path:", config.get("yosys_path", ""), dir_only=False
+        )
 
-    def _make_row(self, form: QFormLayout, label: str, value: str,
-                  dir_only: bool) -> QLineEdit:
+    def _make_row(self, form: QFormLayout, label: str, value: str, dir_only: bool) -> QLineEdit:
         edit = QLineEdit(value)
         btn = QPushButton("Browse…")
 
         def _browse() -> None:
             if dir_only:
-                p = QFileDialog.getExistingDirectory(self, "Select directory",
-                                                     edit.text())
+                p = QFileDialog.getExistingDirectory(self, "Select directory", edit.text())
             else:
-                p, _ = QFileDialog.getOpenFileName(self, "Select executable",
-                                                   edit.text())
+                p, _ = QFileDialog.getOpenFileName(self, "Select executable", edit.text())
             if p:
                 edit.setText(p)
 
@@ -412,12 +449,12 @@ class _AboutTab(QWidget):
         text = QTextEdit()
         text.setReadOnly(True)
         text.setHtml(
-            "<h2>AutoIC</h2>"
+            "<h2>AutoPCB</h2>"
             "<p>AI-Powered IC Design Desktop App.</p>"
             "<p><b>Providers:</b> Anthropic Claude · Ollama · LM Studio · "
             "NVIDIA AI · OpenAI-compatible router</p>"
             "<p><b>Plugins:</b> drop <code>.py</code> files into "
-            "<code>~/.autoic/plugins/</code> or the bundled "
+            "<code>~/.autopcb/plugins/</code> or the bundled "
             "<code>plugins/</code> folder. See "
             "<code>plugins/example_ultimate_plugin.py</code> for the full "
             "plugin authoring reference.</p>"
@@ -426,10 +463,9 @@ class _AboutTab(QWidget):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, config: dict, config_path: Path,
-                 theme_manager=None, parent=None) -> None:
+    def __init__(self, config: dict, config_path: Path, theme_manager=None, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("AutoIC — Settings")
+        self.setWindowTitle("AutoPCB — Settings")
         self.resize(640, 460)
         self._config = dict(config or {})
         self._config_path = Path(config_path)
@@ -446,8 +482,7 @@ class SettingsDialog(QDialog):
         tabs.addTab(_AboutTab(), "About")
 
         buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Save
-            | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(self._save)
         buttons.rejected.connect(self._cancel)
@@ -457,8 +492,10 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
 
     def _cancel(self) -> None:
-        if self._theme_manager is not None and \
-                getattr(self._theme_manager, "current", None) != self._original_theme:
+        if (
+            self._theme_manager is not None
+            and getattr(self._theme_manager, "current", None) != self._original_theme
+        ):
             self._theme_manager.load(self._original_theme)
         self.reject()
 
@@ -468,11 +505,13 @@ class SettingsDialog(QDialog):
         paths = self._tab_paths.collect()
         active = provider_data["active"]
         active_section = provider_data.get(active, {})
-        self._config.update({
-            "ai_provider": provider_data,
-            "api_key": active_section.get("api_key", ""),
-            "model": active_section.get("model", ""),
-        })
+        self._config.update(
+            {
+                "ai_provider": provider_data,
+                "api_key": active_section.get("api_key", ""),
+                "model": active_section.get("model", ""),
+            }
+        )
         self._config.update(appearance)
         self._config.update(paths)
         self._config_path.parent.mkdir(parents=True, exist_ok=True)

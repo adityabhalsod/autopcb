@@ -6,8 +6,15 @@ from typing import Optional
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QFormLayout, QGroupBox, QHeaderView, QLabel, QTableWidget, QTableWidgetItem,
-    QTextEdit, QVBoxLayout, QWidget,
+    QFormLayout,
+    QGroupBox,
+    QHeaderView,
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from core.design_engine import Component, ICDesign, Net
@@ -77,10 +84,12 @@ class PropertyPanel(QWidget):
             t = design.timing_estimates or {}
             delay = t.get("max_delay_ns")
             self._lbl_delay.setText(f"{delay:.2f} ns" if isinstance(delay, (int, float)) else "—")
-            self._lbl_power.setText(f"{design.power_estimate_mw:.2f} mW"
-                                    if design.power_estimate_mw else "—")
-            self._lbl_area.setText(f"{design.area_estimate_um2:.0f} µm²"
-                                   if design.area_estimate_um2 else "—")
+            self._lbl_power.setText(
+                f"{design.power_estimate_mw:.2f} mW" if design.power_estimate_mw else "—"
+            )
+            self._lbl_area.setText(
+                f"{design.area_estimate_um2:.0f} µm²" if design.area_estimate_um2 else "—"
+            )
         else:
             self._lbl_delay.setText("—")
             self._lbl_power.setText("—")

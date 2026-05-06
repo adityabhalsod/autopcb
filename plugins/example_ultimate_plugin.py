@@ -1,4 +1,4 @@
-"""Ultimate AutoIC Plugin — exhaustive reference example.
+"""Ultimate AutoPCB Plugin — exhaustive reference example.
 
 Demonstrates **every** plugin extension point in a single file:
 
@@ -9,7 +9,7 @@ Demonstrates **every** plugin extension point in a single file:
 5. `register_action` — menu action: "Insert Power Tree" drops VDD/GND/decap
    onto the canvas.
 
-Drop this file into ``~/.autoic/plugins/`` (or keep it bundled in the repo's
+Drop this file into ``~/.autopcb/plugins/`` (or keep it bundled in the repo's
 ``plugins/`` folder) — it loads automatically on next launch.
 """
 
@@ -21,7 +21,7 @@ import math
 from pathlib import Path
 from typing import Any
 
-log = logging.getLogger("autoic.plugin.ultimate")
+log = logging.getLogger("autopcb.plugin.ultimate")
 
 
 # ===========================================================================
@@ -29,18 +29,20 @@ log = logging.getLogger("autoic.plugin.ultimate")
 # ===========================================================================
 def _build_555_component():
     from core.component_library import (
-        CAT_ANALOG, ComponentDef, PinDef,
+        CAT_ANALOG,
+        ComponentDef,
+        PinDef,
     )
 
     pins = [
-        PinDef("GND", "ground",  "bottom"),
-        PinDef("TRIG", "input",  "left"),
-        PinDef("OUT",  "output", "right"),
+        PinDef("GND", "ground", "bottom"),
+        PinDef("TRIG", "input", "left"),
+        PinDef("OUT", "output", "right"),
         PinDef("RESET", "input", "left"),
-        PinDef("CTRL", "input",  "left"),
-        PinDef("THR",  "input",  "left"),
-        PinDef("DIS",  "io",     "right"),
-        PinDef("VCC",  "power",  "top"),
+        PinDef("CTRL", "input", "left"),
+        PinDef("THR", "input", "left"),
+        PinDef("DIS", "io", "right"),
+        PinDef("VCC", "power", "top"),
     ]
     return ComponentDef(
         id="TIMER555",
@@ -91,9 +93,9 @@ def _build_echo_provider_class():
         label = "Echo (offline stub)"
         requires_key = False
 
-        def complete(self, system: str, user: str, *,
-                     max_tokens: int = 8000,
-                     temperature: float = 0.2) -> str:
+        def complete(
+            self, system: str, user: str, *, max_tokens: int = 8000, temperature: float = 0.2
+        ) -> str:
             text = f"{system}\n---\n{user}".lower()
             if "ic_spec" in text or "specification" in text:
                 return json.dumps(CANNED_SPEC)
@@ -112,17 +114,20 @@ def _build_echo_provider_class():
                     ".ENDS\n"
                 )
             if "drc" in text:
-                return json.dumps({
-                    "violations": [{
-                        "rule_id": "ECHO-OK",
-                        "severity": "PASS",
-                        "component_ref": "*",
-                        "message": "Echo provider passes everything.",
-                        "suggested_fix": "",
-                    }]
-                })
-            return json.dumps({"message": "Echo provider response.",
-                               "design_patch": None})
+                return json.dumps(
+                    {
+                        "violations": [
+                            {
+                                "rule_id": "ECHO-OK",
+                                "severity": "PASS",
+                                "component_ref": "*",
+                                "message": "Echo provider passes everything.",
+                                "suggested_fix": "",
+                            }
+                        ]
+                    }
+                )
+            return json.dumps({"message": "Echo provider response.", "design_patch": None})
 
         def health_check(self) -> bool:
             return True
@@ -134,17 +139,17 @@ def _build_echo_provider_class():
 # 3) Custom exporter — flat KiCad-style netlist (.net)
 # ===========================================================================
 def _export_kicad_netlist(design: Any, path: Path) -> None:
-    lines: list[str] = ["(export (version D)", "  (design", "    (source autoic))"]
+    lines: list[str] = ["(export (version D)", "  (design", "    (source autopcb))"]
     lines.append("  (components")
     for c in design.components:
         lines.append(f"    (comp (ref {c.id})")
-        lines.append(f"      (value \"{c.value}\")")
-        lines.append(f"      (footprint \"{c.type}\")")
+        lines.append(f'      (value "{c.value}")')
+        lines.append(f'      (footprint "{c.type}")')
         lines.append("    )")
     lines.append("  )")
     lines.append("  (nets")
     for i, net in enumerate(design.nets, start=1):
-        lines.append(f"    (net (code {i}) (name \"{net.name}\")")
+        lines.append(f'    (net (code {i}) (name "{net.name}")')
         for pin_ref in net.connected_pins:
             comp_id, _, pin = pin_ref.partition(".")
             lines.append(f"      (node (ref {comp_id}) (pin {pin}))")
@@ -158,8 +163,22 @@ def _export_kicad_netlist(design: Any, path: Path) -> None:
 # ===========================================================================
 # 4) Custom DRC rule — every IC needs decoupling within 5 pins
 # ===========================================================================
-_IC_TYPES = {"OPAMP", "DFF", "JKFF", "TFF", "MUX2", "MUX4", "ALU4",
-             "TIMER555", "REGFILE", "SRAM6T", "UART", "SPI", "I2C", "PWM"}
+_IC_TYPES = {
+    "OPAMP",
+    "DFF",
+    "JKFF",
+    "TFF",
+    "MUX2",
+    "MUX4",
+    "ALU4",
+    "TIMER555",
+    "REGFILE",
+    "SRAM6T",
+    "UART",
+    "SPI",
+    "I2C",
+    "PWM",
+}
 
 
 def _drc_decoupling(design: Any) -> list[dict]:
@@ -192,13 +211,15 @@ def _drc_decoupling(design: Any) -> list[dict]:
         if power_net is None:
             continue
         if power_net not in cap_nets:
-            out.append({
-                "rule_id": "ULT-001",
-                "severity": "WARN",
-                "component_ref": c.id,
-                "message": f"{c.id} ({c.type}) has no decoupling capacitor on {power_net}.",
-                "suggested_fix": f"Add a 100nF cap from {power_net} to GND near {c.id}.",
-            })
+            out.append(
+                {
+                    "rule_id": "ULT-001",
+                    "severity": "WARN",
+                    "component_ref": c.id,
+                    "message": f"{c.id} ({c.type}) has no decoupling capacitor on {power_net}.",
+                    "suggested_fix": f"Add a 100nF cap from {power_net} to GND near {c.id}.",
+                }
+            )
     return out
 
 
@@ -220,8 +241,7 @@ def _action_insert_power_tree(main_window: Any) -> None:
     canvas.add_component_at("C", QPointF(base_x + 120, base_y + 100))
 
     if hasattr(main_window, "_status"):
-        main_window._status.showMessage(
-            "Power tree inserted (VDD + GND + decoupling cap).", 4000)
+        main_window._status.showMessage("Power tree inserted (VDD + GND + decoupling cap).", 4000)
 
 
 # ===========================================================================
@@ -231,7 +251,7 @@ def register(ctx) -> None:
     ctx.declare(
         name="Ultimate Plugin",
         version="1.0.0",
-        author="AutoIC examples",
+        author="AutoPCB examples",
         description=(
             "Exhaustive reference plugin demonstrating components, AI providers, "
             "exporters, DRC rules, and menu actions."

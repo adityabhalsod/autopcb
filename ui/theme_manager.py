@@ -13,7 +13,7 @@ from typing import Optional
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QApplication
 
-log = logging.getLogger("autoic.theme")
+log = logging.getLogger("autopcb.theme")
 
 THEME_DARK = "dark"
 THEME_PCB = "pcb"
@@ -30,40 +30,40 @@ THEME_NET_COLORS = {
     },
     # Real PCB colours — copper traces over green soldermask.
     THEME_PCB: {
-        "signal": "#d4a017",   # gold-tinted copper
-        "power": "#ff5252",    # red wire
-        "clock": "#ffd54f",    # bright yellow
-        "ground": "#c0c0c0",   # silver
+        "signal": "#d4a017",  # gold-tinted copper
+        "power": "#ff5252",  # red wire
+        "clock": "#ffd54f",  # bright yellow
+        "ground": "#c0c0c0",  # silver
     },
 }
 
 THEME_CANVAS_BG = {
     THEME_DARK: "#12121f",
-    THEME_PCB:  "#0e3d2b",   # FR4 dark green soldermask
+    THEME_PCB: "#0e3d2b",  # FR4 dark green soldermask
 }
 THEME_GRID = {
     THEME_DARK: "#252535",
-    THEME_PCB:  "#155f3f",
+    THEME_PCB: "#155f3f",
 }
 THEME_GRID_MAJOR = {
     THEME_DARK: "#2f2f45",
-    THEME_PCB:  "#1c7a52",
+    THEME_PCB: "#1c7a52",
 }
 THEME_SYMBOL = {
     THEME_DARK: "#cdd6f4",
-    THEME_PCB:  "#f0e6c8",   # silkscreen white-cream
+    THEME_PCB: "#f0e6c8",  # silkscreen white-cream
 }
 THEME_LABEL = {
     THEME_DARK: "#cdd6f4",
-    THEME_PCB:  "#f0e6c8",
+    THEME_PCB: "#f0e6c8",
 }
 THEME_PIN = {
     THEME_DARK: "#f9e2af",
-    THEME_PCB:  "#ffd700",   # gold pad
+    THEME_PCB: "#ffd700",  # gold pad
 }
 THEME_SELECTED = {
     THEME_DARK: "#7c3aed",
-    THEME_PCB:  "#ff8a00",   # orange highlight
+    THEME_PCB: "#ff8a00",  # orange highlight
 }
 
 
@@ -145,8 +145,9 @@ class ThemeManager(QObject):
         return table.get(self._current, "#ffffff")
 
     def net_color(self, net_type: str) -> str:
-        return THEME_NET_COLORS[self._current].get(net_type,
-                                                   THEME_NET_COLORS[self._current]["signal"])
+        return THEME_NET_COLORS[self._current].get(
+            net_type, THEME_NET_COLORS[self._current]["signal"]
+        )
 
 
 __all__ = ["ThemeManager", "THEME_DARK", "THEME_PCB", "ALL_THEMES"]

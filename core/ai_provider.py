@@ -1,6 +1,6 @@
 """Multi-provider AI abstraction.
 
-Every AI call in AutoIC routes through one of these providers. Adding a new
+Every AI call in AutoPCB routes through one of these providers. Adding a new
 backend means subclassing :class:`AIProvider` and registering it in
 :class:`AIProviderFactory`.
 
@@ -23,16 +23,16 @@ import os
 import re
 import subprocess
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
 from .ai_log import AILogBus
 
-log = logging.getLogger("autoic.provider")
+log = logging.getLogger("autopcb.provider")
 
 
 # ---------------------------------------------------------------------------
-# WSL helpers — when AutoIC runs inside WSL but the local LLM server
+# WSL helpers — when AutoPCB runs inside WSL but the local LLM server
 # (Ollama / LM Studio) lives on the Windows host, ``localhost`` does NOT
 # bridge across. We auto-detect the Windows host IP and try it as a
 # fallback whenever a ``localhost`` base URL fails.
@@ -72,8 +72,7 @@ def _windows_host_ip() -> Optional[str]:
         pass
     # 2) default route gateway.
     try:
-        out = subprocess.check_output(
-            ["ip", "route", "show", "default"], text=True, timeout=2.0)
+        out = subprocess.check_output(["ip", "route", "show", "default"], text=True, timeout=2.0)
         m = re.search(r"default via ([0-9.]+)", out)
         if m:
             _WSL_HOST_CACHE = m.group(1)
@@ -99,10 +98,8 @@ def _candidate_bases(base_url: str) -> list[str]:
     # Only rewrite local-loopback URLs.
     if re.search(r"//(localhost|127\.0\.0\.1)([:/])", base):
         if host:
-            out.append(re.sub(r"//(localhost|127\.0\.0\.1)",
-                              f"//{host}", base, count=1))
-        out.append(re.sub(r"//(localhost|127\.0\.0\.1)",
-                          "//host.docker.internal", base, count=1))
+            out.append(re.sub(r"//(localhost|127\.0\.0\.1)", f"//{host}", base, count=1))
+        out.append(re.sub(r"//(localhost|127\.0\.0\.1)", "//host.docker.internal", base, count=1))
     # Deduplicate while preserving order.
     seen: set[str] = set()
     return [u for u in out if not (u in seen or seen.add(u))]
@@ -145,8 +142,11 @@ PROVIDER_NVIDIA = "nvidia"
 PROVIDER_OPENAI_ROUTER = "openai_router"
 
 ALL_PROVIDERS = (
-    PROVIDER_ANTHROPIC, PROVIDER_OLLAMA, PROVIDER_LMSTUDIO,
-    PROVIDER_NVIDIA, PROVIDER_OPENAI_ROUTER,
+    PROVIDER_ANTHROPIC,
+    PROVIDER_OLLAMA,
+    PROVIDER_LMSTUDIO,
+    PROVIDER_NVIDIA,
+    PROVIDER_OPENAI_ROUTER,
 )
 
 PROVIDER_LABELS = {
@@ -225,8 +225,9 @@ class AIProvider:
     def model(self) -> str:
         return self.config.model
 
-    def complete(self, system: str, user: str, *,
-                 max_tokens: int = 8000, temperature: float = 0.2) -> str:
+    def complete(
+        self, system: str, user: str, *, max_tokens: int = 8000, temperature: float = 0.2
+    ) -> str:
         raise NotImplementedError
 
     def health_check(self) -> bool:
@@ -240,8 +241,7 @@ class AIProvider:
         implementation just sets a flag so retry loops can short-circuit.
         """
         self._cancelled = True
-        AILogBus.instance().warn(
-            "cancel", f"{self.name}: cancel requested by user")
+        AILogBus.instance().warn("cancel", f"{self.name}: cancel requested by user")
 
     def reset_cancel(self) -> None:
         self._cancelled = False
@@ -276,21 +276,30 @@ class AnthropicProvider(AIProvider):
             self._client = anthropic.Anthropic(api_key=self.config.api_key)
         return self._client
 
-    def complete(self, system: str, user: str, *,
-                 max_tokens: int = 8000, temperature: float = 0.2) -> str:
+    def complete(
+        self, system: str, user: str, *, max_tokens: int = 8000, temperature: float = 0.2
+    ) -> str:
         bus = AILogBus.instance()
         if self._cancelled:
             raise AIProviderError("Cancelled before request")
         client = self._client_inst()
         model = self.config.model or DEFAULT_MODELS[PROVIDER_ANTHROPIC]
-        bus.info("request",
-                 f"→ Anthropic {model}  user={len(user)}B  system={len(system)}B  "
-                 f"max_tokens={max_tokens}  temp={temperature:.2f}")
-        bus.write_transcript("request", {
-            "provider": "anthropic", "model": model,
-            "max_tokens": max_tokens, "temperature": temperature,
-            "system": system, "user": user,
-        })
+        bus.info(
+            "request",
+            f"→ Anthropic {model}  user={len(user)}B  system={len(system)}B  "
+            f"max_tokens={max_tokens}  temp={temperature:.2f}",
+        )
+        bus.write_transcript(
+            "request",
+            {
+                "provider": "anthropic",
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "system": system,
+                "user": user,
+            },
+        )
         t0 = time.monotonic()
         try:
             resp = client.messages.create(
@@ -321,14 +330,16 @@ class AnthropicProvider(AIProvider):
             bus.error("response", "✕ Anthropic returned empty response")
             raise AIProviderError("Empty response from Anthropic")
         elapsed = time.monotonic() - t0
-        bus.info("response",
-                 f"← Anthropic {model}  bytes={len(text)}  "
-                 f"elapsed={elapsed:.2f}s")
-        bus.write_transcript("response", {
-            "provider": "anthropic", "model": model,
-            "elapsed_seconds": round(elapsed, 3),
-            "response": text,
-        })
+        bus.info("response", f"← Anthropic {model}  bytes={len(text)}  " f"elapsed={elapsed:.2f}s")
+        bus.write_transcript(
+            "response",
+            {
+                "provider": "anthropic",
+                "model": model,
+                "elapsed_seconds": round(elapsed, 3),
+                "response": text,
+            },
+        )
         return text
 
     def cancel(self) -> None:
@@ -385,8 +396,9 @@ class _OpenAICompatibleProvider(AIProvider):
             raise AIProviderError(f"{self.label}: API key required")
         return h
 
-    def complete(self, system: str, user: str, *,
-                 max_tokens: int = 8000, temperature: float = 0.2) -> str:
+    def complete(
+        self, system: str, user: str, *, max_tokens: int = 8000, temperature: float = 0.2
+    ) -> str:
         bus = AILogBus.instance()
         if self._cancelled:
             raise AIProviderError("Cancelled before request")
@@ -403,15 +415,24 @@ class _OpenAICompatibleProvider(AIProvider):
             "temperature": temperature,
             "stream": False,
         }
-        bus.info("request",
-                 f"→ {self.name} POST {url}  model={model}  "
-                 f"user={len(user)}B  system={len(system)}B  "
-                 f"max_tokens={max_tokens}  temp={temperature:.2f}")
-        bus.write_transcript("request", {
-            "provider": self.config.provider, "model": model, "url": url,
-            "max_tokens": max_tokens, "temperature": temperature,
-            "system": system, "user": user,
-        })
+        bus.info(
+            "request",
+            f"→ {self.name} POST {url}  model={model}  "
+            f"user={len(user)}B  system={len(system)}B  "
+            f"max_tokens={max_tokens}  temp={temperature:.2f}",
+        )
+        bus.write_transcript(
+            "request",
+            {
+                "provider": self.config.provider,
+                "model": model,
+                "url": url,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "system": system,
+                "user": user,
+            },
+        )
         t0 = time.monotonic()
         try:
             with h.Client(timeout=self.config.timeout_seconds) as client:
@@ -423,9 +444,10 @@ class _OpenAICompatibleProvider(AIProvider):
                 finally:
                     self._active_client = None
         except h.HTTPStatusError as e:
-            bus.error("response",
-                      f"✕ {self.name} HTTP {e.response.status_code}: "
-                      f"{e.response.text[:160]}")
+            bus.error(
+                "response",
+                f"✕ {self.name} HTTP {e.response.status_code}: " f"{e.response.text[:160]}",
+            )
             raise AIProviderError(
                 f"{self.label} HTTP {e.response.status_code}: {e.response.text[:200]}"
             ) from e
@@ -448,18 +470,22 @@ class _OpenAICompatibleProvider(AIProvider):
             if not text:
                 raise KeyError("empty content")
             elapsed = time.monotonic() - t0
-            bus.info("response",
-                     f"← {self.name} {model}  bytes={len(text)}  "
-                     f"elapsed={elapsed:.2f}s")
-            bus.write_transcript("response", {
-                "provider": self.config.provider, "model": model,
-                "url": url, "elapsed_seconds": round(elapsed, 3),
-                "response": text,
-            })
+            bus.info(
+                "response", f"← {self.name} {model}  bytes={len(text)}  " f"elapsed={elapsed:.2f}s"
+            )
+            bus.write_transcript(
+                "response",
+                {
+                    "provider": self.config.provider,
+                    "model": model,
+                    "url": url,
+                    "elapsed_seconds": round(elapsed, 3),
+                    "response": text,
+                },
+            )
             return text
         except (KeyError, TypeError) as e:
-            bus.error("response",
-                      f"✕ {self.name} malformed response shape ({e})")
+            bus.error("response", f"✕ {self.name} malformed response shape ({e})")
             raise AIProviderError(f"{self.label}: malformed response shape ({e})") from e
 
     def health_check(self) -> bool:
@@ -468,8 +494,7 @@ class _OpenAICompatibleProvider(AIProvider):
         for base in _candidate_bases(self.config.base_url):
             try:
                 with httpx.Client(timeout=4.0) as client:
-                    resp = client.get(base + self.health_path,
-                                      headers=self._headers())
+                    resp = client.get(base + self.health_path, headers=self._headers())
                 if resp.status_code < 500:
                     return True
             except Exception:
@@ -490,12 +515,12 @@ class _OpenAICompatibleProvider(AIProvider):
                     data = resp.json()
                 # OpenAI shape: {"data": [{"id": "..."}, ...]}
                 if isinstance(data, dict) and "data" in data:
-                    models = [str(m.get("id", "")).strip()
-                              for m in data["data"] if m.get("id")]
+                    models = [str(m.get("id", "")).strip() for m in data["data"] if m.get("id")]
                 # Ollama shape: {"models":[{"name":"..."}]}
                 elif isinstance(data, dict) and "models" in data:
-                    models = [str(m.get("name", "")).strip()
-                              for m in data["models"] if m.get("name")]
+                    models = [
+                        str(m.get("name", "")).strip() for m in data["models"] if m.get("name")
+                    ]
                 else:
                     models = []
                 if models:
@@ -588,14 +613,27 @@ class AIProviderFactory:
 
 
 __all__ = [
-    "AIProvider", "AIProviderConfig", "AIProviderError", "AIProviderFactory",
+    "AIProvider",
+    "AIProviderConfig",
+    "AIProviderError",
+    "AIProviderFactory",
     "AIProviderUnavailable",
-    "AnthropicProvider", "OllamaProvider", "LMStudioProvider",
-    "NvidiaAIProvider", "OpenAIRouterProvider",
-    "PROVIDER_ANTHROPIC", "PROVIDER_OLLAMA", "PROVIDER_LMSTUDIO",
-    "PROVIDER_NVIDIA", "PROVIDER_OPENAI_ROUTER",
-    "ALL_PROVIDERS", "PROVIDER_LABELS", "DEFAULT_BASE_URLS", "DEFAULT_MODELS",
-    "is_wsl", "windows_host_ip",
+    "AnthropicProvider",
+    "OllamaProvider",
+    "LMStudioProvider",
+    "NvidiaAIProvider",
+    "OpenAIRouterProvider",
+    "PROVIDER_ANTHROPIC",
+    "PROVIDER_OLLAMA",
+    "PROVIDER_LMSTUDIO",
+    "PROVIDER_NVIDIA",
+    "PROVIDER_OPENAI_ROUTER",
+    "ALL_PROVIDERS",
+    "PROVIDER_LABELS",
+    "DEFAULT_BASE_URLS",
+    "DEFAULT_MODELS",
+    "is_wsl",
+    "windows_host_ip",
 ]
 
 

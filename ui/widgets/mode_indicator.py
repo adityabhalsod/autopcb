@@ -6,7 +6,6 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
-
 _STATE_COLORS = {
     "online": "#10b981",
     "offline": "#ef4444",
@@ -50,8 +49,9 @@ class ModeIndicator(QWidget):
         layout.addWidget(self._label)
         self.setToolTip("AI provider status")
 
-    def set_status(self, *, online: bool, provider: str = "",
-                   model: str = "", state: str | None = None) -> None:
+    def set_status(
+        self, *, online: bool, provider: str = "", model: str = "", state: str | None = None
+    ) -> None:
         if state is None:
             state = "online" if online else "offline"
         self._dot.set_color(_STATE_COLORS.get(state, "#888888"))

@@ -1,1 +1,1 @@
-"""AutoIC PyQt6 UI package."""
+"""AutoPCB PyQt6 UI package."""
